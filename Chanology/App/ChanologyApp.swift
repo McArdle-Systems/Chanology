@@ -6,6 +6,7 @@ import UserNotifications
 @main
 struct ChanologyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([WatchedThread.self])
@@ -18,21 +19,50 @@ struct ChanologyApp: App {
             ContentView()
                 .modelContainer(sharedModelContainer)
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                BackgroundRefreshHandler.scheduleRefresh()
+            }
+        }
+    }
+}
+
+@Observable
+@MainActor
+class NavigationCoordinator {
+    static let shared = NavigationCoordinator()
+
+    var selectedTab: Int = 0
+    var pendingThread: PendingThread?
+
+    struct PendingThread {
+        let board: String
+        let threadNo: Int
+        let subject: String
+    }
+
+    func openThread(board: String, threadNo: Int, subject: String) {
+        pendingThread = PendingThread(board: board, threadNo: threadNo, subject: subject)
+        selectedTab = 1  // Switch to Watching tab
     }
 }
 
 struct ContentView: View {
+    @State private var coordinator = NavigationCoordinator.shared
+
     var body: some View {
-        TabView {
+        TabView(selection: $coordinator.selectedTab) {
             NavigationStack {
                 BoardsView()
             }
             .tabItem { Label("Boards", systemImage: "list.bullet") }
+            .tag(0)
 
             NavigationStack {
                 WatchListView()
             }
             .tabItem { Label("Watching", systemImage: "bell") }
+            .tag(1)
         }
     }
 }

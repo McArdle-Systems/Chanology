@@ -7,6 +7,8 @@ final class WatchedThread {
     var threadNo: Int
     var subject: String
     var lastSeenPostNo: Int
+    /// The last post the user actually read (scrolled past). Used to show "New Replies" marker.
+    var lastReadPostNo: Int = 0
     var newReplyCount: Int
     var lastChecked: Date
 
@@ -15,6 +17,7 @@ final class WatchedThread {
         self.threadNo = threadNo
         self.subject = subject
         self.lastSeenPostNo = lastSeenPostNo
+        self.lastReadPostNo = lastSeenPostNo
         self.newReplyCount = 0
         self.lastChecked = Date()
     }

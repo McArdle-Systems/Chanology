@@ -2,13 +2,15 @@ import UIKit
 @preconcurrency import BackgroundTasks
 import UserNotifications
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         registerBackgroundTasks()
         requestNotificationPermission()
+        UNUserNotificationCenter.current().delegate = self
+        BackgroundRefreshHandler.scheduleRefresh()
         return true
     }
 
@@ -25,7 +27,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
     }
 
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        BackgroundRefreshHandler.scheduleRefresh()
+    // Show notification banners even when the app is in the foreground
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    // Handle notification tap
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        guard let board = userInfo["board"] as? String,
+              let threadNo = userInfo["threadNo"] as? Int else { return }
+        let subject = response.notification.request.content.title
+        await MainActor.run {
+            NavigationCoordinator.shared.openThread(board: board, threadNo: threadNo, subject: subject)
+        }
     }
 }

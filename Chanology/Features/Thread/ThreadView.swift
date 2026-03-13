@@ -15,18 +15,22 @@ struct ThreadView: View {
     let threadNo: Int
     let subject: String
 
+    let scrollToLastRead: Bool
+
     @State private var vm: ThreadViewModel
     @State private var expandedImageURL: URL?
     @State private var scrollProxy: ScrollViewProxy?
     @State private var crossThreadTarget: CrossThreadTarget?
     @State private var highlightedPostNo: Int?
+    @State private var newRepliesMarkerPostNo: Int?
     @Query private var watchedThreads: [WatchedThread]
     @Environment(\.modelContext) private var modelContext
 
-    init(board: String, threadNo: Int, subject: String) {
+    init(board: String, threadNo: Int, subject: String, scrollToLastRead: Bool = false) {
         self.board = board
         self.threadNo = threadNo
         self.subject = subject
+        self.scrollToLastRead = scrollToLastRead
         _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo))
     }
 
@@ -34,6 +38,7 @@ struct ThreadView: View {
         self.board = board
         self.threadNo = threadNo
         self.subject = subject
+        self.scrollToLastRead = false
         _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo, mockPosts: mockPosts))
     }
 
@@ -50,6 +55,10 @@ struct ThreadView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(vm.posts) { post in
+                                if post.no == newRepliesMarkerPostNo {
+                                    NewRepliesMarker()
+                                        .id("new-replies-marker")
+                                }
                                 postRow(post)
                             }
                         }
@@ -81,8 +90,28 @@ struct ThreadView: View {
         .navigationDestination(item: $crossThreadTarget) { target in
             ThreadView(board: target.board, threadNo: target.threadNo, subject: "Thread #\(target.threadNo)")
         }
-        .task { await vm.load() }
+        .task {
+            // Capture the read boundary before loading new posts
+            let lastRead = watchedThreads
+                .first(where: { $0.board == board && $0.threadNo == threadNo })?
+                .lastReadPostNo
+
+            await vm.load()
+
+            // Find the first post after the read boundary
+            if let lastRead, let firstNew = vm.posts.first(where: { $0.no > lastRead }) {
+                newRepliesMarkerPostNo = firstNew.no
+                if scrollToLastRead {
+                    // Small delay for LazyVStack to lay out
+                    try? await Task.sleep(for: .milliseconds(200))
+                    withAnimation {
+                        scrollProxy?.scrollTo("new-replies-marker", anchor: .top)
+                    }
+                }
+            }
+        }
         .refreshable { await vm.load() }
+        .onDisappear { updateWatchProgress() }
         .alert("Error", isPresented: .constant(vm.error != nil)) {
             Button("OK") { vm.error = nil }
         } message: {
@@ -149,6 +178,18 @@ struct ThreadView: View {
         default:
             return .systemAction
         }
+    }
+
+    private func updateWatchProgress() {
+        guard let lastPost = vm.posts.last,
+              let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo })
+        else { return }
+        watched.lastSeenPostNo = lastPost.no
+        watched.lastReadPostNo = lastPost.no
+        watched.newReplyCount = 0
+        watched.lastChecked = Date()
+        // Clear the marker since user has now seen everything
+        newRepliesMarkerPostNo = nil
     }
 
     private func toggleWatch() {
@@ -228,6 +269,28 @@ struct PostView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+}
+
+// MARK: - New Replies Marker
+
+struct NewRepliesMarker: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(height: 1)
+            Text("New Replies")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.accentColor)
+                .layoutPriority(1)
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(height: 1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 }
 
@@ -346,6 +409,15 @@ private func mockPost(
         )
     }
     .modelContainer(for: WatchedThread.self, inMemory: true)
+}
+
+#Preview("New Replies Marker") {
+    VStack(spacing: 0) {
+        PostView(post: mockPost(no: 11111, com: "Old post above the marker", resto: 99999))
+        Divider().padding(.leading, 16)
+        NewRepliesMarker()
+        PostView(post: mockPost(no: 22222, com: "New post below the marker", resto: 99999))
+    }
 }
 
 #Preview("Post — greentext") {

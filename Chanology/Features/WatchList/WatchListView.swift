@@ -1,9 +1,17 @@
 import SwiftUI
 import SwiftData
 
+struct WatchedThreadTarget: Hashable {
+    let board: String
+    let threadNo: Int
+    let subject: String
+}
+
 struct WatchListView: View {
     @Query private var watchedThreads: [WatchedThread]
     @Environment(\.modelContext) private var modelContext
+    @State private var coordinator = NavigationCoordinator.shared
+    @State private var pendingTarget: WatchedThreadTarget?
 
     var body: some View {
         Group {
@@ -30,12 +38,35 @@ struct WatchListView: View {
         }
         .navigationTitle("Watching")
         .navigationDestination(for: WatchedThread.self) { thread in
-            ThreadView(board: thread.board, threadNo: thread.threadNo, subject: thread.subject)
+            ThreadView(board: thread.board, threadNo: thread.threadNo, subject: thread.subject, scrollToLastRead: true)
+        }
+        .navigationDestination(item: $pendingTarget) { target in
+            ThreadView(board: target.board, threadNo: target.threadNo, subject: target.subject, scrollToLastRead: true)
+        }
+        .onChange(of: coordinator.pendingThread?.threadNo) { _, _ in
+            if let pending = coordinator.pendingThread {
+                pendingTarget = WatchedThreadTarget(board: pending.board, threadNo: pending.threadNo, subject: pending.subject)
+                coordinator.pendingThread = nil
+            }
         }
         .toolbar {
-            if !watchedThreads.isEmpty {
-                EditButton()
+            ToolbarItem(placement: .topBarLeading) {
+                if !watchedThreads.isEmpty {
+                    EditButton()
+                }
             }
+            #if DEBUG
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    let ctx = modelContext
+                    Task { @MainActor in
+                        await BackgroundRefreshHandler.performRefresh(using: ctx)
+                    }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+            }
+            #endif
         }
     }
 }

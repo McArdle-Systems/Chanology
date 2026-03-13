@@ -7,7 +7,11 @@ actor NotificationService {
     func notify(board: String, threadNo: Int, subject: String, newPosts: [Post]) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized else { return }
+        print("[Notifications] Authorization status: \(settings.authorizationStatus.rawValue) (2 = authorized)")
+        guard settings.authorizationStatus == .authorized else {
+            print("[Notifications] Not authorized, skipping")
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = "/\(board)/ — \(subject)"
@@ -27,6 +31,11 @@ actor NotificationService {
             trigger: nil
         )
 
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+            print("[Notifications] Delivered: \(content.title) — \(content.body)")
+        } catch {
+            print("[Notifications] Failed to deliver: \(error)")
+        }
     }
 }

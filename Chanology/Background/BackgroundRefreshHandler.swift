@@ -8,6 +8,7 @@ enum BackgroundRefreshHandler {
     /// Called by BGTaskScheduler when the system grants background time.
     /// Budget: ~30 seconds. Keep this lean.
     static func handleAppRefresh(task: BGAppRefreshTask) {
+        print("[BackgroundRefresh] Task fired")
         // Schedule the next refresh immediately so we don't miss a slot
         scheduleRefresh()
 
@@ -30,21 +31,32 @@ enum BackgroundRefreshHandler {
         // Earliest fire date — iOS won't fire before this, but may fire much later.
         // 15 minutes is the practical minimum iOS will honor.
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
-        try? BGTaskScheduler.shared.submit(request)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("[BackgroundRefresh] Scheduled refresh for ~15 min from now")
+        } catch {
+            print("[BackgroundRefresh] Failed to schedule: \(error)")
+        }
     }
 
     /// The actual polling work. Fetches each watched thread and fires local
     /// notifications for new posts. Designed to complete well within 30s.
-    static func performRefresh() async {
-        let container: ModelContainer
-        do {
-            let schema = Schema([WatchedThread.self])
-            container = try ModelContainer(for: schema)
-        } catch {
-            return
+    /// Pass a `ModelContext` when calling from the UI to keep SwiftUI's @Query in sync.
+    static func performRefresh(using existingContext: ModelContext? = nil) async {
+        let context: ModelContext
+        if let existingContext {
+            context = existingContext
+        } else {
+            let container: ModelContainer
+            do {
+                let schema = Schema([WatchedThread.self])
+                container = try ModelContainer(for: schema)
+            } catch {
+                return
+            }
+            context = ModelContext(container)
         }
 
-        let context = ModelContext(container)
         let descriptor = FetchDescriptor<WatchedThread>()
 
         guard let threads = try? context.fetch(descriptor), !threads.isEmpty else { return }
