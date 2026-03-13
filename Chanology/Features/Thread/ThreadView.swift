@@ -1,12 +1,25 @@
 import SwiftUI
 import SwiftData
 
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
+}
+
+struct CrossThreadTarget: Hashable {
+    let board: String
+    let threadNo: Int
+}
+
 struct ThreadView: View {
     let board: String
     let threadNo: Int
     let subject: String
 
     @State private var vm: ThreadViewModel
+    @State private var expandedImageURL: URL?
+    @State private var scrollProxy: ScrollViewProxy?
+    @State private var crossThreadTarget: CrossThreadTarget?
+    @State private var highlightedPostNo: Int?
     @Query private var watchedThreads: [WatchedThread]
     @Environment(\.modelContext) private var modelContext
 
@@ -37,15 +50,11 @@ struct ThreadView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(vm.posts) { post in
-                                PostView(post: post)
-                                    .id(post.no)
-                                Divider().padding(.leading, 16)
+                                postRow(post)
                             }
                         }
                     }
-                    .onChange(of: vm.posts.count) { _, _ in
-                        // Scroll to bottom on new posts
-                    }
+                    .onAppear { scrollProxy = proxy }
                 }
             }
         }
@@ -66,12 +75,79 @@ struct ThreadView: View {
                 }
             }
         }
+        .fullScreenCover(item: $expandedImageURL) { url in
+            ExpandedImageView(url: url)
+        }
+        .navigationDestination(item: $crossThreadTarget) { target in
+            ThreadView(board: target.board, threadNo: target.threadNo, subject: "Thread #\(target.threadNo)")
+        }
         .task { await vm.load() }
         .refreshable { await vm.load() }
         .alert("Error", isPresented: .constant(vm.error != nil)) {
             Button("OK") { vm.error = nil }
         } message: {
             Text(vm.error?.localizedDescription ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private func postRow(_ post: Post) -> some View {
+        let isHighlighted = highlightedPostNo == post.no
+        PostView(post: post, onImageTap: { url in
+            expandedImageURL = url
+        })
+        .id(post.no)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.accentColor, lineWidth: 2)
+                .shadow(color: Color.accentColor.opacity(0.6), radius: isHighlighted ? 8 : 0)
+                .opacity(isHighlighted ? 1 : 0)
+                .padding(.horizontal, 4)
+        )
+        .environment(\.openURL, OpenURLAction { url in
+            return handleLink(url)
+        })
+        Divider().padding(.leading, 16)
+    }
+
+    private func handleLink(_ url: URL) -> OpenURLAction.Result {
+        guard url.scheme == "chanology" else { return .systemAction }
+
+        let parts = url.pathComponents.filter { $0 != "/" }
+
+        switch url.host() {
+        case "post":
+            // Intra-thread scroll: chanology://post/123456
+            if let postNo = Int(url.lastPathComponent) {
+                withAnimation {
+                    scrollProxy?.scrollTo(postNo, anchor: .top)
+                }
+                // Animate highlight after scroll settles
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    withAnimation(.easeIn(duration: 0.3)) {
+                        highlightedPostNo = postNo
+                    }
+                    try? await Task.sleep(for: .seconds(1.5))
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        highlightedPostNo = nil
+                    }
+                }
+            }
+            return .handled
+        case "thread":
+            // Cross-board thread: chanology://thread/g/123456
+            if parts.count >= 2, let threadNo = Int(parts[1]) {
+                crossThreadTarget = CrossThreadTarget(board: parts[0], threadNo: threadNo)
+            }
+            return .handled
+        case "board":
+            // Cross-board link: chanology://board/g
+            // Board navigation requires the Board model; for now open the thread list isn't possible
+            // without fetching the board metadata. We'll skip this gracefully.
+            return .discarded
+        default:
+            return .systemAction
         }
     }
 
@@ -92,6 +168,7 @@ struct ThreadView: View {
 
 struct PostView: View {
     let post: Post
+    var onImageTap: ((URL) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -106,7 +183,7 @@ struct PostView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                if let id = post.id {
+                if let id = post.posterID {
                     Text("ID:\(id)")
                         .font(.caption2)
                         .foregroundStyle(.white)
@@ -115,12 +192,12 @@ struct PostView: View {
                         .background(Color.gray.opacity(0.5), in: Capsule())
                 }
                 Spacer()
-                Text("No.\(post.no)")
+                Text(verbatim: "No.\(post.no)")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
 
-            // Image
+            // Image — tap to expand
             if let url = post.imageURL {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFit()
@@ -136,6 +213,7 @@ struct PostView: View {
                 }
                 .frame(maxWidth: 260)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .onTapGesture { onImageTap?(url) }
             }
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
@@ -150,6 +228,54 @@ struct PostView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+}
+
+// MARK: - Expanded Image View
+
+struct ExpandedImageView: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            AsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnifyGesture()
+                            .onChanged { value in
+                                scale = value.magnification
+                            }
+                            .onEnded { value in
+                                withAnimation { scale = max(1.0, value.magnification) }
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation { scale = scale > 1 ? 1.0 : 2.0 }
+                    }
+            } placeholder: {
+                ProgressView()
+                    .tint(.white)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .gray.opacity(0.6))
+            }
+            .padding()
+        }
+        .onTapGesture { dismiss() }
     }
 }
 

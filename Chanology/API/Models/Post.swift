@@ -6,7 +6,7 @@ struct Post: Codable, Identifiable, Sendable {
     let now: String          // Date string "MM/DD/YY(Day)HH:MM:SS"
     let name: String?        // Poster name
     let trip: String?        // Tripcode
-    let id: String?          // Poster ID (on boards that show it)
+    let posterID: String?    // Poster ID (on boards that show it)
     let capcode: String?     // mod/admin capcode
     let com: String?         // Comment HTML
     let sub: String?         // Subject (OP only)
@@ -28,6 +28,7 @@ struct Post: Codable, Identifiable, Sendable {
     let bumplimit: Int?
     let imagelimit: Int?
 
+    var id: Int { no }
     var isOP: Bool { resto == 0 }
     var thumbnailURL: URL? {
         guard let tim, let board = _board else { return nil }
@@ -50,9 +51,10 @@ struct Post: Codable, Identifiable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case no, now, name, trip, id, capcode, com, sub, tim
+        case no, now, name, trip, capcode, com, sub, tim
         case filename, ext, fsize, w, h, md5, resto, replies, images
         case sticky, closed, archived, bumplimit, imagelimit
+        case posterID = "id"
         case tnW = "tn_w"
         case tnH = "tn_h"
     }

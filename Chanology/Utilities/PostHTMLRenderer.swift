@@ -98,13 +98,9 @@ enum PostHTMLRenderer {
             stack.append(s)
         case "a":
             var s = stack.last ?? Style()
-            if attrs["class"] == "quotelink" {
+            if attrs["class"] == "quotelink", let href = attrs["href"] {
                 s.color = .accentColor
-                if let href = attrs["href"],
-                   let no = href.split(separator: "p").last,
-                   let postNo = Int(no) {
-                    s.quoteTarget = postNo
-                }
+                s.link = Self.resolveQuoteLink(href)
             }
             stack.append(s)
         case "b", "strong":
@@ -127,7 +123,12 @@ enum PostHTMLRenderer {
             chunk.backgroundColor = .init(white: 0.15)
             return
         }
-        if let color = style.color { chunk.foregroundColor = color }
+        if let link = style.link {
+            chunk.link = link
+            chunk.foregroundColor = .accentColor
+        } else if let color = style.color {
+            chunk.foregroundColor = color
+        }
         if style.strikethrough { chunk.strikethroughStyle = .single }
 
         switch (style.bold, style.italic, style.monospace) {
@@ -137,6 +138,37 @@ enum PostHTMLRenderer {
         case (false, false, true):  chunk.font = .system(.body, design: .monospaced)
         default: break
         }
+    }
+
+    // MARK: - Link resolution
+
+    /// Converts an href from a quotelink into a chanology:// URL.
+    ///
+    /// Patterns:
+    ///   #p123456                           → chanology://post/123456        (same-thread)
+    ///   /g/                                → chanology://board/g            (cross-board)
+    ///   /g/thread/123456                   → chanology://thread/g/123456    (cross-board thread)
+    ///   /g/thread/123456#p789              → chanology://thread/g/123456    (cross-board post in thread)
+    private static func resolveQuoteLink(_ href: String) -> URL? {
+        // Same-thread post reference: #p123456
+        if href.hasPrefix("#p"), let postNo = Int(href.dropFirst(2)) {
+            return URL(string: "chanology://post/\(postNo)")
+        }
+
+        // Cross-board patterns: /board/ or /board/thread/N or /board/thread/N#pN
+        let cleaned = href.components(separatedBy: "#").first ?? href
+        let parts = cleaned.split(separator: "/", omittingEmptySubsequences: true)
+
+        if parts.count == 1 {
+            // /g/ → board link
+            return URL(string: "chanology://board/\(parts[0])")
+        }
+        if parts.count >= 3, parts[1] == "thread", let threadNo = Int(parts[2]) {
+            // /g/thread/123456
+            return URL(string: "chanology://thread/\(parts[0])/\(threadNo)")
+        }
+
+        return nil
     }
 
     // MARK: - Private: attribute parser
@@ -228,6 +260,6 @@ enum PostHTMLRenderer {
         var spoiler = false
         var strikethrough = false
         var monospace = false
-        var quoteTarget: Int? = nil
+        var link: URL? = nil
     }
 }
