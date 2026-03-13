@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 
 enum BackgroundRefreshHandler {
-    static let taskIdentifier = "com.chanology.background.refresh"
+    static let taskIdentifier = "io.mcardle.chanology.background.refresh"
 
     /// Called by BGTaskScheduler when the system grants background time.
     /// Budget: ~30 seconds. Keep this lean.

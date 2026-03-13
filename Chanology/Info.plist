@@ -4,7 +4,7 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.chanology.background.refresh</string>
+		<string>io.mcardle.chanology.background.refresh</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>Chanology needs notification access to alert you when threads you're watching receive new replies.</string>
+	<string>Chanology needs notification access to alert you when threads you&apos;re watching receive new replies.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
