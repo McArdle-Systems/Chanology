@@ -7,7 +7,6 @@ struct ThreadView: View {
     let subject: String
 
     @State private var vm: ThreadViewModel
-    @State private var showSubjectPopover = false
     @Query private var watchedThreads: [WatchedThread]
     @Environment(\.modelContext) private var modelContext
 
@@ -16,6 +15,13 @@ struct ThreadView: View {
         self.threadNo = threadNo
         self.subject = subject
         _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo))
+    }
+
+    fileprivate init(board: String, threadNo: Int, subject: String, mockPosts: [Post]) {
+        self.board = board
+        self.threadNo = threadNo
+        self.subject = subject
+        _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo, mockPosts: mockPosts))
     }
 
     private var isWatched: Bool {
@@ -43,27 +49,15 @@ struct ThreadView: View {
                 }
             }
         }
+        .navigationTitle(subject)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Button {
-                    showSubjectPopover = true
-                } label: {
-                    Text(subject)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundStyle(.primary)
-                }
-                .popover(isPresented: $showSubjectPopover) {
-                    Text(subject)
-                        .font(.body)
-                        .padding()
-                        .frame(minWidth: 260, maxWidth: 340)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .presentationCompactAdaptation(.popover)
-                }
+        .toolbarTitleMenu {
+            Text(subject)
+            Button("Copy Title", systemImage: "doc.on.doc") {
+                UIPasteboard.general.string = subject
             }
+        }
+        .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     toggleWatch()
@@ -159,6 +153,56 @@ struct PostView: View {
     }
 }
 
+// MARK: - Previews
+
+private func mockPost(
+    no: Int = 99999,
+    com: String = ##"<span class="quote">&gt;be me</span><br>&gt;write Swift code all day<br><a href="#p12344" class="quotelink">&gt;&gt;12344</a><br>genuinely enjoying it &#039;desu"##,
+    id: String? = "xKz9aB",
+    resto: Int = 0,
+    sub: String? = "Swift is clearly the best and any other opinion is wrong."
+) -> Post {
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": no, "now": "01/01/25(Wed)12:30:00",
+        "name": "Anonymous", "id": id as Any,
+        "com": com, "resto": resto
+    ] as [String: Any])
+    var p = try! JSONDecoder().decode(Post.self, from: data)
+    p._board = "g"
+    return p
+}
+
+#Preview("Thread") {
+    NavigationStack {
+        ThreadView(
+            board: "g",
+            threadNo: 12345,
+            subject: "Post your desktop / tech setups",
+            mockPosts: [
+                mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Some subject"),
+                mockPost(no: 12346, com: ##"<span class="quote">&gt;be me</span><br>&gt;write Swift code all day<br><a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>genuinely enjoying it &#039;desu"##, resto: 12345),
+                mockPost(no: 12347, com: "Anyone else think Rust is overrated? I&#039;ve been writing C for 20 years and never had memory issues.", id: nil, resto: 12345),
+            ]
+        )
+    }
+    .modelContainer(for: WatchedThread.self, inMemory: true)
+}
+
+#Preview("Post — greentext") {
+    PostView(post: mockPost())
+        .padding()
+}
+
+#Preview("Post — plain") {
+    PostView(post: mockPost(
+        no: 11111,
+        com: "Anyone else think Rust is overrated? I&#039;ve been writing C for 20 years and never had memory issues.",
+        id: nil,
+        resto: 99999
+    ))
+    .padding()
+}
+
 @Observable
 @MainActor
 class ThreadViewModel {
@@ -173,7 +217,14 @@ class ThreadViewModel {
         self.threadNo = threadNo
     }
 
+    init(board: String, threadNo: Int, mockPosts: [Post]) {
+        self.board = board
+        self.threadNo = threadNo
+        self.posts = mockPosts
+    }
+
     func load() async {
+        guard posts.isEmpty else { return }
         isLoading = true
         defer { isLoading = false }
         do {

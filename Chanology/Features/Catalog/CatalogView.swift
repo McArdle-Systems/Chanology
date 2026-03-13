@@ -92,6 +92,50 @@ struct CatalogThreadRow: View {
     }
 }
 
+// MARK: - Previews
+
+private let previewBoard = Board(
+    board: "g", title: "Technology",
+    wsBoard: 1, perPage: 15, pages: 10,
+    maxFilesize: 4194304, maxWebmFilesize: 3145728,
+    maxCommentChars: 2000, isArchived: nil
+)
+
+private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42) -> CatalogThread {
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": no, "now": "01/01/25(Wed)12:00:00",
+        "sub": sub as Any,
+        "com": (com ?? "&gt;be me<br>post tech things<br>get (you)s") as Any,
+        "replies": replies, "images": 10, "last_modified": 1735000000
+    ] as [String: Any])
+    var t = try! JSONDecoder().decode(CatalogThread.self, from: data)
+    t._board = "g"
+    return t
+}
+
+#Preview("Catalog") {
+    NavigationStack {
+        CatalogView(board: previewBoard)
+    }
+    .modelContainer(for: WatchedThread.self, inMemory: true)
+}
+
+#Preview("CatalogThreadRow — with subject") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?"),
+        board: "g"
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — no subject") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(replies: 1337),
+        board: "g"
+    )
+    .padding(.vertical, 4)
+}
+
 @Observable
 @MainActor
 class CatalogViewModel {
