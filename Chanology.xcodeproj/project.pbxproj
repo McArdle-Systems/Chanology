@@ -28,7 +28,7 @@
 		21A09608CE48A55B799D557B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		230475872652212EE7EA09BE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3A004C6BC070ACEC1C9BD959 /* PostHTMLRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHTMLRenderer.swift; sourceTree = "<group>"; };
-		3BC4EC98DB921C1FF5C5B829 /* Chanology.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Chanology.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BC4EC98DB921C1FF5C5B829 /* Chanology.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chanology.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		44F1BE5DFAF17FBB312F578E /* BackgroundRefreshHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshHandler.swift; sourceTree = "<group>"; };
 		4683B16C238C7934CA31402A /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
 		4E0D7223D94E4BE4DCA9A296 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Post.swift; sourceTree = "<group>"; };
@@ -209,11 +209,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-					25204C66FE0AB41A12F5426F = {
-						DevelopmentTeam = "";
-					};
-				};
 			};
 			buildConfigurationList = A598C7EDD02E82B4EF61A159 /* Build configuration list for PBXProject "Chanology" */;
 			developmentRegion = en;
@@ -275,7 +270,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = G75D5FBNYR;
 				INFOPLIST_FILE = Chanology/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -349,7 +344,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = G75D5FBNYR;
 				INFOPLIST_FILE = Chanology/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
