@@ -52,13 +52,15 @@ struct ThreadView: View {
                     Text(subject)
                         .font(.headline)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                         .foregroundStyle(.primary)
-                        .frame(maxWidth: 200)
                 }
                 .popover(isPresented: $showSubjectPopover) {
                     Text(subject)
                         .font(.body)
                         .padding()
+                        .frame(minWidth: 260, maxWidth: 340)
+                        .fixedSize(horizontal: false, vertical: true)
                         .presentationCompactAdaptation(.popover)
                 }
             }
