@@ -1,0 +1,29 @@
+name: Chanology
+options:
+  bundleIdPrefix: com.chanology
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16"
+targets:
+  Chanology:
+    type: application
+    platform: iOS
+    sources:
+      - path: Chanology
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chanology.app
+        SWIFT_VERSION: "6.0"
+        INFOPLIST_FILE: Chanology/Info.plist
+        DEVELOPMENT_TEAM: ""
+    info:
+      path: Chanology/Info.plist
+      properties:
+        UILaunchScreen:
+          UIColorName: ""
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.chanology.background.refresh
+        UIBackgroundModes:
+          - fetch
+          - remote-notification
+        NSUserNotificationsUsageDescription: "Chanology needs notification access to alert you when threads you're watching receive new replies."

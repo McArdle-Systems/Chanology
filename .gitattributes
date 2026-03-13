@@ -1,0 +1,26 @@
+# Auto-detect text vs binary
+* text=auto
+
+# Swift source — normalize line endings to LF
+*.swift text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.xml   text eol=lf
+*.plist text eol=lf
+
+# Xcode project files — treat as binary to avoid merge conflicts mangling them
+*.pbxproj binary
+*.xcworkspace binary
+
+# Actual binaries
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.a     binary
+*.o     binary
