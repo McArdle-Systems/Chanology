@@ -237,6 +237,9 @@ struct ExpandedImageView: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -247,17 +250,48 @@ struct ExpandedImageView: View {
                     .resizable()
                     .scaledToFit()
                     .scaleEffect(scale)
+                    .offset(offset)
                     .gesture(
                         MagnifyGesture()
                             .onChanged { value in
-                                scale = value.magnification
+                                scale = lastScale * value.magnification
                             }
                             .onEnded { value in
-                                withAnimation { scale = max(1.0, value.magnification) }
+                                lastScale = max(1.0, lastScale * value.magnification)
+                                withAnimation {
+                                    scale = lastScale
+                                    if scale <= 1.0 {
+                                        offset = .zero
+                                        lastOffset = .zero
+                                    }
+                                }
                             }
+                            .simultaneously(with:
+                                DragGesture()
+                                    .onChanged { value in
+                                        guard scale > 1 else { return }
+                                        offset = CGSize(
+                                            width: lastOffset.width + value.translation.width,
+                                            height: lastOffset.height + value.translation.height
+                                        )
+                                    }
+                                    .onEnded { value in
+                                        lastOffset = offset
+                                    }
+                            )
                     )
                     .onTapGesture(count: 2) {
-                        withAnimation { scale = scale > 1 ? 1.0 : 2.0 }
+                        withAnimation {
+                            if scale > 1 {
+                                scale = 1.0
+                                lastScale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            } else {
+                                scale = 2.0
+                                lastScale = 2.0
+                            }
+                        }
                     }
             } placeholder: {
                 ProgressView()
