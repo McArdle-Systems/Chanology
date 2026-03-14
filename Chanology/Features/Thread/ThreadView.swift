@@ -1,5 +1,7 @@
 import SwiftUI
+import SwiftUI
 import SwiftData
+import AVKit
 
 extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }
@@ -77,6 +79,7 @@ struct ThreadView: View {
 
                             // Bottom refresh
                             Button {
+                                newRepliesMarkerPostNo = nil
                                 Task {
                                     await refreshThread(userInitiated: true)
                                 }
@@ -451,24 +454,9 @@ struct PostView: View {
                 }
                 // Board-specific meme flag (image)
                 if let flagURL = post.boardFlagURL {
-                    AsyncImage(url: flagURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFit()
-                        case .failure:
-                            // Show flag name text if image fails to load
-                            Text(post.flagName ?? post.boardFlag ?? "")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        case .empty:
-                            ProgressView()
-                                .controlSize(.mini)
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                    .frame(height: 12)
-                    .help(post.flagName ?? "")
+                    AnimatedImageView(url: flagURL)
+                        .frame(height: 12)
+                        .help(post.flagName ?? "")
                 }
                 Spacer()
                 // Tappable post number for quoting
@@ -489,23 +477,51 @@ struct PostView: View {
                 .buttonStyle(.plain)
             }
 
-            // Image — tap to expand
+            // Media (Image or Video) — tap to expand
             if let url = post.imageURL {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFit()
-                } placeholder: {
-                    if let thumbURL = post.thumbnailURL {
-                        AsyncImage(url: thumbURL) { img in
-                            img.resizable().scaledToFit()
-                        } placeholder: {
-                            Color.secondary.opacity(0.2)
-                                .frame(height: 120)
+                if post.ext == ".webm" {
+                    // Video thumbnail with play indicator
+                    ZStack {
+                        if let thumbURL = post.thumbnailURL {
+                            AsyncImage(url: thumbURL) { img in
+                                img.resizable().scaledToFit()
+                            } placeholder: {
+                                Color.secondary.opacity(0.2)
+                                    .frame(height: 120)
+                            }
+                        }
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 4)
+                    }
+                    .frame(maxWidth: 260)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onTapGesture { onImageTap?(url) }
+                } else if post.ext == ".gif" {
+                    // Animated GIF
+                    AnimatedImageView(url: url)
+                        .frame(maxWidth: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .onTapGesture { onImageTap?(url) }
+                } else {
+                    // Static Image
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        if let thumbURL = post.thumbnailURL {
+                            AsyncImage(url: thumbURL) { img in
+                                img.resizable().scaledToFit()
+                            } placeholder: {
+                                Color.secondary.opacity(0.2)
+                                    .frame(height: 120)
+                            }
                         }
                     }
+                    .frame(maxWidth: 260)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onTapGesture { onImageTap?(url) }
                 }
-                .frame(maxWidth: 260)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .onTapGesture { onImageTap?(url) }
             }
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
@@ -575,18 +591,63 @@ struct ExpandedImageView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+    @State private var player: AVPlayer?
+    
+    private var isVideo: Bool {
+        url.pathExtension.lowercased() == "webm"
+    }
+    
+    private var isGif: Bool {
+        url.pathExtension.lowercased() == "gif"
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
 
-            imageView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if isVideo {
+                videoView
+            } else if isGif {
+                gifView
+            } else {
+                imageView
+            }
 
             closeButton
                 .padding()
         }
-        .onTapGesture { dismiss() }
+        .onTapGesture { 
+            if !isVideo {
+                dismiss()
+            }
+        }
+        .onAppear {
+            if isVideo {
+                player = AVPlayer(url: url)
+                player?.play()
+            }
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
+        }
+    }
+    
+    private var videoView: some View {
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView()
+                    .tint(.white)
+            }
+        }
+    }
+    
+    private var gifView: some View {
+        AnimatedImageView(url: url)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     private var imageView: some View {
@@ -662,6 +723,76 @@ struct ExpandedImageView: View {
         lastScale = 1.0
         offset = .zero
         lastOffset = .zero
+    }
+}
+
+// MARK: - Animated Image View (for GIFs)
+
+struct AnimatedImageView: UIViewRepresentable {
+    let url: URL
+    
+    func makeUIView(context: Context) -> UIImageView {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        imageView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        
+        // Load the image asynchronously
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                
+                // Create animated image from GIF data
+                if let source = CGImageSourceCreateWithData(data as CFData, nil) {
+                    let count = CGImageSourceGetCount(source)
+                    
+                    if count > 1 {
+                        // Animated GIF
+                        var images: [UIImage] = []
+                        var totalDuration: TimeInterval = 0
+                        
+                        for i in 0..<count {
+                            if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
+                                // Get frame duration
+                                var duration: TimeInterval = 0.1 // Default
+                                if let properties = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
+                                   let gifProperties = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
+                                    if let delayTime = gifProperties[kCGImagePropertyGIFUnclampedDelayTime] as? TimeInterval, delayTime > 0 {
+                                        duration = delayTime
+                                    } else if let delayTime = gifProperties[kCGImagePropertyGIFDelayTime] as? TimeInterval {
+                                        duration = delayTime
+                                    }
+                                }
+                                
+                                totalDuration += duration
+                                images.append(UIImage(cgImage: cgImage))
+                            }
+                        }
+                        
+                        await MainActor.run {
+                            imageView.animationImages = images
+                            imageView.animationDuration = totalDuration
+                            imageView.animationRepeatCount = 0 // Infinite loop
+                            imageView.startAnimating()
+                        }
+                    } else if count == 1, let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+                        // Static image
+                        await MainActor.run {
+                            imageView.image = UIImage(cgImage: cgImage)
+                        }
+                    }
+                }
+            } catch {
+                // Silently fail or show placeholder
+                print("Failed to load animated image: \(error)")
+            }
+        }
+        
+        return imageView
+    }
+    
+    func updateUIView(_ uiView: UIImageView, context: Context) {
+        // No updates needed
     }
 }
 
@@ -757,6 +888,51 @@ private func mockPost(
         flagName: "Anarcho-Capitalist"
     ))
     .padding()
+}
+
+#Preview("Post — with webm") {
+    var post = mockPost(
+        no: 11111,
+        com: "Check out this sick webm",
+        resto: 99999
+    )
+    // Simulate a webm attachment
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": 11111,
+        "now": "01/01/25(Wed)12:30:00",
+        "name": "Anonymous",
+        "com": "Check out this sick webm",
+        "resto": 99999,
+        "tim": 1234567890,
+        "ext": ".webm",
+        "filename": "cool_video",
+        "w": 1920,
+        "h": 1080
+    ] as [String: Any])
+    var p = try! JSONDecoder().decode(Post.self, from: data)
+    p._board = "g"
+    return PostView(post: p)
+        .padding()
+}
+
+#Preview("Post — with gif") {
+    // Simulate a gif attachment
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": 11112,
+        "now": "01/01/25(Wed)12:31:00",
+        "name": "Anonymous",
+        "com": "kek, have a gif",
+        "resto": 99999,
+        "tim": 1234567891,
+        "ext": ".gif",
+        "filename": "pepe_dance",
+        "w": 500,
+        "h": 500
+    ] as [String: Any])
+    var p = try! JSONDecoder().decode(Post.self, from: data)
+    p._board = "g"
+    return PostView(post: p)
+        .padding()
 }
 
 @Observable
