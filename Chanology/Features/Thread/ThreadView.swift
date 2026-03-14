@@ -1,7 +1,7 @@
 import SwiftUI
-import SwiftUI
 import SwiftData
 import AVKit
+import WebKit
 
 extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }
@@ -479,48 +479,59 @@ struct PostView: View {
 
             // Media (Image or Video) — tap to expand
             if let url = post.imageURL {
-                if post.ext == ".webm" {
-                    // Video thumbnail with play indicator
-                    ZStack {
-                        if let thumbURL = post.thumbnailURL {
-                            AsyncImage(url: thumbURL) { img in
-                                img.resizable().scaledToFit()
-                            } placeholder: {
-                                Color.secondary.opacity(0.2)
-                                    .frame(height: 120)
+                VStack(alignment: .leading, spacing: 4) {
+                    if post.ext == ".webm" || post.ext == ".mp4" {
+                        // Video thumbnail with play indicator
+                        ZStack {
+                            if let thumbURL = post.thumbnailURL {
+                                AsyncImage(url: thumbURL) { img in
+                                    img.resizable().scaledToFit()
+                                } placeholder: {
+                                    Color.secondary.opacity(0.2)
+                                        .frame(height: 120)
+                                }
                             }
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.white)
+                                .shadow(radius: 4)
                         }
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.white)
-                            .shadow(radius: 4)
-                    }
-                    .frame(maxWidth: 260)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onTapGesture { onImageTap?(url) }
-                } else if post.ext == ".gif" {
-                    // Animated GIF
-                    AnimatedImageView(url: url)
                         .frame(maxWidth: 260)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .onTapGesture { onImageTap?(url) }
-                } else {
-                    // Static Image
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFit()
-                    } placeholder: {
-                        if let thumbURL = post.thumbnailURL {
-                            AsyncImage(url: thumbURL) { img in
-                                img.resizable().scaledToFit()
-                            } placeholder: {
-                                Color.secondary.opacity(0.2)
-                                    .frame(height: 120)
+                    } else if post.ext == ".gif" {
+                        // Animated GIF
+                        AnimatedImageView(url: url)
+                            .frame(maxWidth: 260)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .onTapGesture { onImageTap?(url) }
+                    } else {
+                        // Static Image
+                        AsyncImage(url: url) { image in
+                            image.resizable().scaledToFit()
+                        } placeholder: {
+                            if let thumbURL = post.thumbnailURL {
+                                AsyncImage(url: thumbURL) { img in
+                                    img.resizable().scaledToFit()
+                                } placeholder: {
+                                    Color.secondary.opacity(0.2)
+                                        .frame(height: 120)
+                                }
                             }
                         }
+                        .frame(maxWidth: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .onTapGesture { onImageTap?(url) }
                     }
-                    .frame(maxWidth: 260)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onTapGesture { onImageTap?(url) }
+                    
+                    // Filename display
+                    if let filename = post.filename, let ext = post.ext {
+                        Text("\(filename)\(ext)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
             }
 
@@ -591,25 +602,37 @@ struct ExpandedImageView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    @State private var player: AVPlayer?
     
-    private var isVideo: Bool {
-        url.pathExtension.lowercased() == "webm"
+    private var mediaType: MediaType {
+        let ext = url.pathExtension.lowercased()
+        switch ext {
+        case "webm":
+            return .webm
+        case "mp4":
+            return .mp4
+        case "gif":
+            return .gif
+        default:
+            return .image
+        }
     }
     
-    private var isGif: Bool {
-        url.pathExtension.lowercased() == "gif"
+    enum MediaType {
+        case webm, mp4, gif, image
     }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
 
-            if isVideo {
-                videoView
-            } else if isGif {
+            switch mediaType {
+            case .webm:
+                WebMPlayerView(url: url)
+            case .mp4:
+                VideoPlayerView(url: url)
+            case .gif:
                 gifView
-            } else {
+            case .image:
                 imageView
             }
 
@@ -617,30 +640,8 @@ struct ExpandedImageView: View {
                 .padding()
         }
         .onTapGesture { 
-            if !isVideo {
+            if mediaType == .image {
                 dismiss()
-            }
-        }
-        .onAppear {
-            if isVideo {
-                player = AVPlayer(url: url)
-                player?.play()
-            }
-        }
-        .onDisappear {
-            player?.pause()
-            player = nil
-        }
-    }
-    
-    private var videoView: some View {
-        Group {
-            if let player {
-                VideoPlayer(player: player)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ProgressView()
-                    .tint(.white)
             }
         }
     }
@@ -723,6 +724,126 @@ struct ExpandedImageView: View {
         lastScale = 1.0
         offset = .zero
         lastOffset = .zero
+    }
+}
+
+// MARK: - Video Player View
+
+struct VideoPlayerView: View {
+    let url: URL
+    @State private var player: AVPlayer?
+    @State private var looper: AVPlayerLooper?
+    
+    var body: some View {
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView()
+                    .tint(.white)
+            }
+        }
+        .onAppear {
+            setupPlayer()
+        }
+        .onDisappear {
+            cleanup()
+        }
+    }
+    
+    private func setupPlayer() {
+        // Create player with proper audio session configuration
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session: \(error)")
+        }
+        
+        let playerItem = AVPlayerItem(url: url)
+        let queuePlayer = AVQueuePlayer(playerItem: playerItem)
+        
+        // Set up looping
+        looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
+        
+        player = queuePlayer
+        player?.play()
+    }
+    
+    private func cleanup() {
+        player?.pause()
+        looper = nil
+        player = nil
+    }
+}
+
+// MARK: - WebM Player View
+
+struct WebMPlayerView: UIViewRepresentable {
+    let url: URL
+    
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.backgroundColor = .black
+        webView.isOpaque = false
+        webView.scrollView.isScrollEnabled = false
+        
+        return webView
+    }
+    
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Create HTML to play the video with looping
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                }
+                body {
+                    background-color: black;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    overflow: hidden;
+                }
+                video {
+                    max-width: 100%;
+                    max-height: 100vh;
+                    width: auto;
+                    height: auto;
+                }
+            </style>
+        </head>
+        <body>
+            <video autoplay loop playsinline muted controls>
+                <source src="\(url.absoluteString)" type="video/webm">
+                Your browser does not support the video tag.
+            </video>
+            <script>
+                // Try to play with sound if possible
+                const video = document.querySelector('video');
+                video.muted = false;
+                video.play().catch(() => {
+                    // If autoplay with sound fails, try muted
+                    video.muted = true;
+                    video.play();
+                });
+            </script>
+        </body>
+        </html>
+        """
+        
+        webView.loadHTMLString(html, baseURL: nil)
     }
 }
 
@@ -928,6 +1049,26 @@ private func mockPost(
         "filename": "pepe_dance",
         "w": 500,
         "h": 500
+    ] as [String: Any])
+    var p = try! JSONDecoder().decode(Post.self, from: data)
+    p._board = "g"
+    return PostView(post: p)
+        .padding()
+}
+
+#Preview("Post — with mp4") {
+    // Simulate an mp4 attachment
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": 11113,
+        "now": "01/01/25(Wed)12:32:00",
+        "name": "Anonymous",
+        "com": "posting from my iPhone",
+        "resto": 99999,
+        "tim": 1234567892,
+        "ext": ".mp4",
+        "filename": "IMG_1234",
+        "w": 1920,
+        "h": 1080
     ] as [String: Any])
     var p = try! JSONDecoder().decode(Post.self, from: data)
     p._board = "g"

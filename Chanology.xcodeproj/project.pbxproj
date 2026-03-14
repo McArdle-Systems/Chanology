@@ -28,6 +28,7 @@
 		FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0782F64E3B90098EC87 /* ChanPostAPI.swift */; };
 		FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07A2F64E3CB0098EC87 /* LoginView.swift */; };
 		FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */; };
+		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		FA91B0782F64E3B90098EC87 /* ChanPostAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanPostAPI.swift; sourceTree = "<group>"; };
 		FA91B07A2F64E3CB0098EC87 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
+		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -124,6 +126,7 @@
 			isa = PBXGroup;
 			children = (
 				230475872652212EE7EA09BE /* Assets.xcassets */,
+				FA91B07E2F6513DC0098EC87 /* AppIcon.icon */,
 				60D7752E8B22D5AE0C96AC15 /* Info.plist */,
 				467D9133BAFC1AD706DD42AE /* API */,
 				F7D9E65FC4E9DF5D0533058E /* App */,
@@ -261,6 +264,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AB8B4ECA9616F372A298A134 /* Assets.xcassets in Resources */,
+				FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
