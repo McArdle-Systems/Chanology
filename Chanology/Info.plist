@@ -25,7 +25,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Chanology needs photo library access to attach images to your posts.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>Chanology needs notification access to alert you when threads you&apos;re watching receive new replies.</string>
+	<string>Chanology needs notification access to alert you when threads you're watching receive new replies.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
@@ -36,5 +36,12 @@
 		<key>UIColorName</key>
 		<string></string>
 	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
 </dict>
 </plist>
