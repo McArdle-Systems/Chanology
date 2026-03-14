@@ -22,6 +22,12 @@
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
 		C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28EB82DFF125BF662041087 /* NotificationService.swift */; };
 		D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */; };
+		FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */; };
+		FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0742F64E3880098EC87 /* FlowLayout.swift */; };
+		FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0762F64E38F0098EC87 /* KeychainHelper.swift */; };
+		FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0782F64E3B90098EC87 /* ChanPostAPI.swift */; };
+		FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07A2F64E3CB0098EC87 /* LoginView.swift */; };
+		FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +48,12 @@
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
 		F28EB82DFF125BF662041087 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyMapBuilder.swift; sourceTree = "<group>"; };
+		FA91B0742F64E3880098EC87 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		FA91B0762F64E38F0098EC87 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		FA91B0782F64E3B90098EC87 /* ChanPostAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanPostAPI.swift; sourceTree = "<group>"; };
+		FA91B07A2F64E3CB0098EC87 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -66,6 +78,7 @@
 			children = (
 				CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */,
 				C3F0CD90AF759BF92EC61A5D /* Models */,
+				FA91B0782F64E3B90098EC87 /* ChanPostAPI.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -82,6 +95,8 @@
 			isa = PBXGroup;
 			children = (
 				3A004C6BC070ACEC1C9BD959 /* PostHTMLRenderer.swift */,
+				FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */,
+				FA91B0742F64E3880098EC87 /* FlowLayout.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -117,6 +132,7 @@
 				5494B8C9B15328A6383DD07E /* Notifications */,
 				E373CFB7B6DD356463773DDF /* Storage */,
 				6362B9F198B67709A8E9869B /* Utilities */,
+				FA91B0712F649DA20098EC87 /* Auth */,
 			);
 			path = Chanology;
 			sourceTree = "<group>";
@@ -151,6 +167,8 @@
 			isa = PBXGroup;
 			children = (
 				C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */,
+				FA91B07A2F64E3CB0098EC87 /* LoginView.swift */,
+				FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */,
 			);
 			path = Thread;
 			sourceTree = "<group>";
@@ -178,6 +196,14 @@
 				603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		FA91B0712F649DA20098EC87 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				FA91B0762F64E38F0098EC87 /* KeychainHelper.swift */,
+			);
+			path = Auth;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -246,19 +272,25 @@
 			buildActionMask = 2147483647;
 			files = (
 				A3C72E389678DDD8FD931145 /* AppDelegate.swift in Sources */,
+				FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */,
 				47B8E459A68A0468840529B4 /* BackgroundRefreshHandler.swift in Sources */,
 				48F4C7A46A8E2E8F9C9E5F23 /* Board.swift in Sources */,
 				65CE33106A66F6825ACE6638 /* BoardsView.swift in Sources */,
+				FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */,
+				FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */,
 				376480683B6FDED29961A829 /* CatalogView.swift in Sources */,
 				37771D00868A815A0E6C2C7D /* ChanAPI.swift in Sources */,
 				B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */,
 				C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */,
+				FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */,
 				52129FBCB14EB81BED84E87A /* Post.swift in Sources */,
 				159E4341393624FBD6E3D2A0 /* PostHTMLRenderer.swift in Sources */,
 				B51702252281F094950CCDC3 /* Thread.swift in Sources */,
 				3FE713FFC81E3F0158461CA9 /* ThreadView.swift in Sources */,
 				1CC17F9B1C223637837F3A45 /* WatchListView.swift in Sources */,
+				FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */,
 				D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */,
+				FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

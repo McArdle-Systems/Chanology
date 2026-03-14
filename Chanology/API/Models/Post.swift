@@ -27,6 +27,10 @@ struct Post: Codable, Identifiable, Sendable {
     let archived: Int?
     let bumplimit: Int?
     let imagelimit: Int?
+    let country: String?         // ISO country code (e.g. "US") — boards with flags
+    let countryName: String?     // Full country name (e.g. "United States")
+    let boardFlag: String?       // Board-specific meme flag code (e.g. "AC")
+    let flagName: String?        // Meme flag display name (e.g. "Anarcho-Capitalist")
 
     var id: Int { no }
     var isOP: Bool { resto == 0 }
@@ -50,13 +54,33 @@ struct Post: Codable, Identifiable, Sendable {
         return PostHTMLRenderer.plainText(com)
     }
 
+    /// URL for the board-specific meme flag image.
+    var boardFlagURL: URL? {
+        guard let boardFlag, let board = _board else { return nil }
+        return URL(string: "https://s.4cdn.org/image/country/\(board)/\(boardFlag).gif")
+    }
+
+    /// Emoji flag derived from ISO country code (e.g. "US" → "🇺🇸").
+    var countryEmoji: String? {
+        guard let country, country.count == 2 else { return nil }
+        let base: UInt32 = 0x1F1E6 - 65 // Regional indicator 'A'
+        let scalars = country.uppercased().unicodeScalars.compactMap { scalar -> Unicode.Scalar? in
+            Unicode.Scalar(base + scalar.value)
+        }
+        guard scalars.count == 2 else { return nil }
+        return String(scalars.map { Character($0) })
+    }
+
     enum CodingKeys: String, CodingKey {
         case no, now, name, trip, capcode, com, sub, tim
         case filename, ext, fsize, w, h, md5, resto, replies, images
         case sticky, closed, archived, bumplimit, imagelimit
+        case country, flagName
         case posterID = "id"
         case tnW = "tn_w"
         case tnH = "tn_h"
+        case countryName = "country_name"
+        case boardFlag = "board_flag"
     }
 }
 
