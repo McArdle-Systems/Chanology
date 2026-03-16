@@ -120,6 +120,9 @@ struct ThreadView: View {
             ThreadView(board: target.board, threadNo: target.threadNo, subject: "Thread #\(target.threadNo)")
         }
         .task {
+            // Pre-warm WebKit and AVAudioSession so first video playback is fast
+            MediaPlayerPreloader.shared.warmUp()
+
             // Capture the read boundary before loading new posts
             let lastRead = watchedThreads
                 .first(where: { $0.board == board && $0.threadNo == threadNo })?

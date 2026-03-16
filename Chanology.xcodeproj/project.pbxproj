@@ -34,6 +34,7 @@
 		FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */; };
 		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
+		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +78,7 @@
 		FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
 		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
+		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -131,6 +133,7 @@
 				FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */,
 				FA91B0742F64E3880098EC87 /* FlowLayout.swift */,
 				FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */,
+				FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -351,6 +354,7 @@
 			files = (
 				A3C72E389678DDD8FD931145 /* AppDelegate.swift in Sources */,
 				FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */,
+				FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */,
 				47B8E459A68A0468840529B4 /* BackgroundRefreshHandler.swift in Sources */,
 				48F4C7A46A8E2E8F9C9E5F23 /* Board.swift in Sources */,
 				65CE33106A66F6825ACE6638 /* BoardsView.swift in Sources */,
