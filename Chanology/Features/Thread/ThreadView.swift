@@ -100,22 +100,7 @@ struct ThreadView: View {
         .navigationTitle(subject)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarTitleMenu {
-            Button {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    showFullTitle = true
-                }
-            } label: {
-                Label("Show Full Title", systemImage: "text.justify.leading")
-            }
-        }
-        .popover(isPresented: $showFullTitle, arrowEdge: .top) {
-            VStack {
-                Text(subject)
-                    .frame(width: 250, alignment: .leading)
-            }
-            .fixedSize()
-            .padding()
-            .presentationCompactAdaptation(.popover)
+            Text(subject)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -140,6 +125,7 @@ struct ThreadView: View {
             let lastRead = watchedThreads
                 .first(where: { $0.board == board && $0.threadNo == threadNo })?
                 .lastReadPostNo
+
             await vm.load()
             replyMap = ReplyMapBuilder.build(from: vm.posts)
 
