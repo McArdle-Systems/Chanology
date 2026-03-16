@@ -79,7 +79,6 @@ struct ThreadView: View {
 
                             // Bottom refresh
                             Button {
-                                newRepliesMarkerPostNo = nil
                                 Task {
                                     await refreshThread(userInitiated: true)
                                 }
@@ -359,15 +358,22 @@ struct ThreadView: View {
         await vm.load(refresh: true)
         replyMap = ReplyMapBuilder.build(from: vm.posts)
         
+        // Place or clear the new-replies marker for any user-initiated refresh,
+        // regardless of whether the thread is watched.
+        if userInitiated {
+            if let lastPostNoBefore, let firstNew = vm.posts.first(where: { $0.no > lastPostNoBefore }) {
+                newRepliesMarkerPostNo = firstNew.no
+            } else {
+                // No new posts arrived — clear any stale marker
+                newRepliesMarkerPostNo = nil
+            }
+        }
+        
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) else {
             return
         }
         
         if userInitiated {
-            // Place the marker at the first post that is new since the last load
-            if let lastPostNoBefore, let firstNew = vm.posts.first(where: { $0.no > lastPostNoBefore }) {
-                newRepliesMarkerPostNo = firstNew.no
-            }
             // Mark everything as read since the user is actively checking
             if let lastPost = vm.posts.last {
                 watched.lastReadPostNo = lastPost.no
