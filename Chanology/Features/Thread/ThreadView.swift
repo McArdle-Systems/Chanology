@@ -97,32 +97,27 @@ struct ThreadView: View {
                 }
             }
         }
+        .navigationTitle(subject)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Button {
+        .toolbarTitleMenu {
+            Button {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     showFullTitle = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(subject)
-                            .font(.headline)
-                            .lineLimit(1)
-                            .foregroundStyle(.primary)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.secondary)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .popover(isPresented: $showFullTitle) {
-                    Text(subject)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding()
-                        .frame(maxWidth: 300)
-                        .presentationCompactAdaptation(.popover)
-                }
+            } label: {
+                Label("Show Full Title", systemImage: "text.justify.leading")
             }
+        }
+        .popover(isPresented: $showFullTitle, arrowEdge: .top) {
+            VStack {
+                Text(subject)
+                    .frame(width: 250, alignment: .leading)
+            }
+            .fixedSize()
+            .padding()
+            .presentationCompactAdaptation(.popover)
+        }
+        .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     toggleWatch()
@@ -145,7 +140,6 @@ struct ThreadView: View {
             let lastRead = watchedThreads
                 .first(where: { $0.board == board && $0.threadNo == threadNo })?
                 .lastReadPostNo
-
             await vm.load()
             replyMap = ReplyMapBuilder.build(from: vm.posts)
 
@@ -975,7 +969,7 @@ private func mockPost(
         ThreadView(
             board: "g",
             threadNo: 12345,
-            subject: "Post your desktop / tech setups",
+            subject: "Post your desktop / tech setups. And here ill add some obnoxiously long text for the title.",
             mockPosts: [
                 mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Some subject"),
                 mockPost(no: 12346, com: ##"<span class="quote">&gt;be me</span><br>&gt;write Swift code all day<br><a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>genuinely enjoying it &#039;desu"##, resto: 12345),
@@ -1093,23 +1087,6 @@ private func mockPost(
         "filename": "IMG_1234",
         "w": 1920,
         "h": 1080
-    ] as [String: Any])
-    var p = try! JSONDecoder().decode(Post.self, from: data)
-    p._board = "g"
-    return PostView(post: p)
-        .padding()
-}
-
-#Preview("Post — obnoxiously long title") {
-    // Simulate an mp4 attachment
-    let data = try! JSONSerialization.data(withJSONObject: [
-        "no": 11113,
-        "now": "01/01/25(Wed)12:32:00",
-        "name": "Anonymous",
-        "com": "posting from my iPhone",
-        "resto": 99999,
-        "tim": 1234567892,
-        "sub": "This is an obnoxiously long title that will definitely make the preview text to the next line. I'm just saying."
     ] as [String: Any])
     var p = try! JSONDecoder().decode(Post.self, from: data)
     p._board = "g"
