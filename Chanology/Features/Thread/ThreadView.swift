@@ -27,6 +27,7 @@ struct ThreadView: View {
     @State private var newRepliesMarkerPostNo: Int?
     @State private var replyMap: [Int: [Int]] = [:]
     @State private var selectedQuotes: [Int] = []
+    @State private var showFullTitle = false
     @State private var showCompose = false
     @State private var showLogin = false
     @State private var autoRefreshTask: Task<Void, Never>?
@@ -96,15 +97,32 @@ struct ThreadView: View {
                 }
             }
         }
-        .navigationTitle(subject)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarTitleMenu {
-            Text(subject)
-            Button("Copy Title", systemImage: "doc.on.doc") {
-                UIPasteboard.general.string = subject
-            }
-        }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Button {
+                    showFullTitle = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(subject)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .foregroundStyle(.primary)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .popover(isPresented: $showFullTitle) {
+                    Text(subject)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding()
+                        .frame(maxWidth: 300)
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     toggleWatch()
@@ -1075,6 +1093,23 @@ private func mockPost(
         "filename": "IMG_1234",
         "w": 1920,
         "h": 1080
+    ] as [String: Any])
+    var p = try! JSONDecoder().decode(Post.self, from: data)
+    p._board = "g"
+    return PostView(post: p)
+        .padding()
+}
+
+#Preview("Post — obnoxiously long title") {
+    // Simulate an mp4 attachment
+    let data = try! JSONSerialization.data(withJSONObject: [
+        "no": 11113,
+        "now": "01/01/25(Wed)12:32:00",
+        "name": "Anonymous",
+        "com": "posting from my iPhone",
+        "resto": 99999,
+        "tim": 1234567892,
+        "sub": "This is an obnoxiously long title that will definitely make the preview text to the next line. I'm just saying."
     ] as [String: Any])
     var p = try! JSONDecoder().decode(Post.self, from: data)
     p._board = "g"
