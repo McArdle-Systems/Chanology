@@ -129,8 +129,12 @@ struct ThreadView: View {
             replyMap = ReplyMapBuilder.build(from: vm.posts)
 
             // Find the first post after the read boundary
-            if let lastRead, let firstNew = vm.posts.first(where: { $0.no > lastRead }) {
-                newRepliesMarkerPostNo = firstNew.no
+            let marker = ThreadRefreshLogic.markerOnInitialLoad(
+                lastReadPostNo: lastRead,
+                postNos: vm.posts.map(\.no)
+            )
+            if let postNo = marker.markerPostNo {
+                newRepliesMarkerPostNo = postNo
                 if scrollToLastRead {
                     // Small delay for LazyVStack to lay out
                     try? await Task.sleep(for: .milliseconds(200))
@@ -311,20 +315,15 @@ struct ThreadView: View {
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }),
               !visiblePosts.isEmpty else { return }
         
-        // Find the highest visible post number
-        let highestVisible = visiblePosts.max() ?? 0
-        
-        // Update lastReadPostNo to the highest visible post
-        if highestVisible > watched.lastReadPostNo {
-            watched.lastReadPostNo = highestVisible
+        if let result = ThreadRefreshLogic.readStateAfterScroll(
+            visiblePosts: visiblePosts,
+            allPostNos: vm.posts.map(\.no),
+            currentLastReadPostNo: watched.lastReadPostNo
+        ) {
+            watched.lastReadPostNo = result.newLastReadPostNo
             watched.lastChecked = Date()
-            
-            // Update the marker to the first post after what we've read
-            if let firstNew = vm.posts.first(where: { $0.no > highestVisible }) {
-                newRepliesMarkerPostNo = firstNew.no
-            } else {
-                // No new posts, clear marker
-                newRepliesMarkerPostNo = nil
+            newRepliesMarkerPostNo = result.markerPostNo
+            if result.markerPostNo == nil {
                 watched.newReplyCount = 0
             }
         }
@@ -358,15 +357,16 @@ struct ThreadView: View {
         await vm.load(refresh: true)
         replyMap = ReplyMapBuilder.build(from: vm.posts)
         
+        let postNos = vm.posts.map(\.no)
+        
         // Place or clear the new-replies marker for any user-initiated refresh,
         // regardless of whether the thread is watched.
         if userInitiated {
-            if let lastPostNoBefore, let firstNew = vm.posts.first(where: { $0.no > lastPostNoBefore }) {
-                newRepliesMarkerPostNo = firstNew.no
-            } else {
-                // No new posts arrived — clear any stale marker
-                newRepliesMarkerPostNo = nil
-            }
+            let marker = ThreadRefreshLogic.markerAfterUserRefresh(
+                lastPostNoBefore: lastPostNoBefore,
+                postNosAfter: postNos
+            )
+            newRepliesMarkerPostNo = marker.markerPostNo
         }
         
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) else {
@@ -374,25 +374,22 @@ struct ThreadView: View {
         }
         
         if userInitiated {
-            // Mark everything as read since the user is actively checking
-            if let lastPost = vm.posts.last {
-                watched.lastReadPostNo = lastPost.no
-                watched.lastSeenPostNo = lastPost.no
-                watched.newReplyCount = 0
+            if let update = ThreadRefreshLogic.readStateAfterUserRefresh(postNosAfter: postNos) {
+                watched.lastReadPostNo = update.lastReadPostNo
+                watched.lastSeenPostNo = update.lastSeenPostNo
+                watched.newReplyCount = update.newReplyCount
                 watched.lastChecked = Date()
             }
         } else {
-            // Auto-refresh: keep marker stable, only add it if it doesn't exist
-            if newRepliesMarkerPostNo == nil,
-               let firstNew = vm.posts.first(where: { $0.no > watched.lastReadPostNo }) {
-                newRepliesMarkerPostNo = firstNew.no
-            }
-            
-            // Update lastSeenPostNo and newReplyCount
-            if let lastPost = vm.posts.last {
-                let newPostCount = vm.posts.filter { $0.no > watched.lastSeenPostNo }.count
-                watched.lastSeenPostNo = lastPost.no
-                watched.newReplyCount = newPostCount
+            if let update = ThreadRefreshLogic.autoRefreshUpdate(
+                currentMarkerPostNo: newRepliesMarkerPostNo,
+                lastReadPostNo: watched.lastReadPostNo,
+                lastSeenPostNo: watched.lastSeenPostNo,
+                postNosAfter: postNos
+            ) {
+                newRepliesMarkerPostNo = update.markerPostNo
+                watched.lastSeenPostNo = update.lastSeenPostNo
+                watched.newReplyCount = update.newReplyCount
                 watched.lastChecked = Date()
             }
         }

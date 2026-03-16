@@ -57,7 +57,7 @@ struct Post: Codable, Identifiable, Sendable {
     /// URL for the board-specific meme flag image.
     var boardFlagURL: URL? {
         guard let boardFlag, let board = _board else { return nil }
-        return URL(string: "https://s.4cdn.org/image/country/\(board)/\(boardFlag).gif")
+        return URL(string: "https://s.4cdn.org/image/flags/\(board)/\(boardFlag.lowercased()).gif")
     }
 
     /// Emoji flag derived from ISO country code (e.g. "US" → "🇺🇸").
@@ -75,7 +75,8 @@ struct Post: Codable, Identifiable, Sendable {
         case no, now, name, trip, capcode, com, sub, tim
         case filename, ext, fsize, w, h, md5, resto, replies, images
         case sticky, closed, archived, bumplimit, imagelimit
-        case country, flagName
+        case country
+        case flagName = "flag_name"
         case posterID = "id"
         case tnW = "tn_w"
         case tnH = "tn_h"

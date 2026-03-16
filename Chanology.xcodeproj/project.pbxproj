@@ -17,6 +17,10 @@
 		52129FBCB14EB81BED84E87A /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E0D7223D94E4BE4DCA9A296 /* Post.swift */; };
 		65CE33106A66F6825ACE6638 /* BoardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E3A37D433C85BFFCA81497 /* BoardsView.swift */; };
 		A3C72E389678DDD8FD931145 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21A09608CE48A55B799D557B /* AppDelegate.swift */; };
+		AA00000000000000000006 /* ReplyMapBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000002 /* ReplyMapBuilderTests.swift */; };
+		AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000003 /* PostHTMLRendererTests.swift */; };
+		AA00000000000000000008 /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000004 /* ModelTests.swift */; };
+		AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000005 /* ThreadRefreshLogicTests.swift */; };
 		AB8B4ECA9616F372A298A134 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 230475872652212EE7EA09BE /* Assets.xcassets */; };
 		B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */; };
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
@@ -29,7 +33,18 @@
 		FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07A2F64E3CB0098EC87 /* LoginView.swift */; };
 		FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */; };
 		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
+		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA0000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7E6DF28C2BC39712A5B85131 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 25204C66FE0AB41A12F5426F;
+			remoteInfo = Chanology;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		21A09608CE48A55B799D557B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -45,6 +60,11 @@
 		733B54C3FBB4083356455C3F /* CatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogView.swift; sourceTree = "<group>"; };
 		78EBAB55D9F547CC236E89C2 /* Thread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Thread.swift; sourceTree = "<group>"; };
 		9B33D4E3173BEB32E4E52B35 /* WatchListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchListView.swift; sourceTree = "<group>"; };
+		AA00000000000000000001 /* ChanologyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChanologyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00000000000000000002 /* ReplyMapBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyMapBuilderTests.swift; sourceTree = "<group>"; };
+		AA00000000000000000003 /* PostHTMLRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHTMLRendererTests.swift; sourceTree = "<group>"; };
+		AA00000000000000000004 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		AA00000000000000000005 /* ThreadRefreshLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogicTests.swift; sourceTree = "<group>"; };
 		C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadView.swift; sourceTree = "<group>"; };
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
@@ -56,7 +76,18 @@
 		FA91B07A2F64E3CB0098EC87 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		FA91B07C2F64E3EA0098EC87 /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
 		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
+		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000000000000000000C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		16E9D63C3F96B181CFB95ADA /* WatchList */ = {
@@ -99,6 +130,7 @@
 				3A004C6BC070ACEC1C9BD959 /* PostHTMLRenderer.swift */,
 				FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */,
 				FA91B0742F64E3880098EC87 /* FlowLayout.swift */,
+				FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -118,6 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				3BC4EC98DB921C1FF5C5B829 /* Chanology.app */,
+				AA00000000000000000001 /* ChanologyTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -140,6 +173,17 @@
 			path = Chanology;
 			sourceTree = "<group>";
 		};
+		AA0000000000000000000A /* ChanologyTests */ = {
+			isa = PBXGroup;
+			children = (
+				AA00000000000000000002 /* ReplyMapBuilderTests.swift */,
+				AA00000000000000000003 /* PostHTMLRendererTests.swift */,
+				AA00000000000000000004 /* ModelTests.swift */,
+				AA00000000000000000005 /* ThreadRefreshLogicTests.swift */,
+			);
+			path = ChanologyTests;
+			sourceTree = "<group>";
+		};
 		BFD295CE6461406E753383E7 /* Boards */ = {
 			isa = PBXGroup;
 			children = (
@@ -152,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				9C06F205C1EE6CD365A49C93 /* Chanology */,
+				AA0000000000000000000A /* ChanologyTests */,
 				9B5213E87CD7338D53BF927F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -230,6 +275,23 @@
 			productReference = 3BC4EC98DB921C1FF5C5B829 /* Chanology.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AA00000000000000000012 /* ChanologyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00000000000000000011 /* Build configuration list for PBXNativeTarget "ChanologyTests" */;
+			buildPhases = (
+				AA0000000000000000000B /* Sources */,
+				AA0000000000000000000C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0000000000000000000E /* PBXTargetDependency */,
+			);
+			name = ChanologyTests;
+			productName = ChanologyTests;
+			productReference = AA00000000000000000001 /* ChanologyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -254,6 +316,7 @@
 			projectRoot = "";
 			targets = (
 				25204C66FE0AB41A12F5426F /* Chanology */,
+				AA00000000000000000012 /* ChanologyTests */,
 			);
 		};
 /* End PBXProject section */
@@ -271,6 +334,17 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA00000000000000000006 /* ReplyMapBuilderTests.swift in Sources */,
+				AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */,
+				AA00000000000000000008 /* ModelTests.swift in Sources */,
+				AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E79FD4EB8B47939E19069D71 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -283,6 +357,7 @@
 				FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */,
 				FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */,
 				376480683B6FDED29961A829 /* CatalogView.swift in Sources */,
+				FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */,
 				37771D00868A815A0E6C2C7D /* ChanAPI.swift in Sources */,
 				B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */,
 				C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */,
@@ -299,6 +374,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA0000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 25204C66FE0AB41A12F5426F /* Chanology */;
+			targetProxy = AA0000000000000000000D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8C4CF77156F2AFB98D7D779E /* Debug */ = {
@@ -373,6 +456,36 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AA0000000000000000000F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = G75D5FBNYR;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.mcardle.chanology.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chanology.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Chanology";
+			};
+			name = Debug;
+		};
+		AA00000000000000000010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = G75D5FBNYR;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.mcardle.chanology.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chanology.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Chanology";
 			};
 			name = Release;
 		};
@@ -475,6 +588,15 @@
 			buildConfigurations = (
 				E634581E4B9CA65D6C649116 /* Debug */,
 				8D0DE2928556430AAB1C8985 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AA00000000000000000011 /* Build configuration list for PBXNativeTarget "ChanologyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000F /* Debug */,
+				AA00000000000000000010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
