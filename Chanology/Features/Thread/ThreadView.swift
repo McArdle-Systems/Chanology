@@ -100,7 +100,13 @@ struct ThreadView: View {
         .navigationTitle(subject)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarTitleMenu {
-            Text(subject)
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    showFullTitle = true
+                }
+            } label: {
+                Label("Show Full Title", systemImage: "text.justify.leading")
+            }
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -109,6 +115,22 @@ struct ThreadView: View {
                 } label: {
                     Image(systemName: isWatched ? "bell.fill" : "bell")
                 }
+            }
+        }
+        .overlay(alignment: .top) {
+            if showFullTitle {
+                Text(subject)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                    .shadow(radius: 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .onTapGesture {
+                        withAnimation(.easeIn(duration: 0.15)) {
+                            showFullTitle = false
+                        }
+                    }
             }
         }
         .fullScreenCover(item: $expandedImageURL) { url in
