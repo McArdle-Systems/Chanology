@@ -3,13 +3,17 @@ import UIKit
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    override init() {
+        super.init()
+        UNUserNotificationCenter.current().delegate = self
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         registerBackgroundTasks()
         requestNotificationPermission()
-        UNUserNotificationCenter.current().delegate = self
         BackgroundRefreshHandler.scheduleRefresh()
         return true
     }
@@ -43,7 +47,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let userInfo = response.notification.request.content.userInfo
         guard let board = userInfo["board"] as? String,
               let threadNo = userInfo["threadNo"] as? Int else { return }
-        let subject = response.notification.request.content.title
+        let subject = userInfo["subject"] as? String ?? "Thread #\(threadNo)"
         await MainActor.run {
             NavigationCoordinator.shared.openThread(board: board, threadNo: threadNo, subject: subject)
         }

@@ -23,7 +23,7 @@ actor NotificationService {
         }
 
         content.sound = .default
-        content.userInfo = ["board": board, "threadNo": threadNo]
+        content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
 
         let request = UNNotificationRequest(
             identifier: "\(board)-\(threadNo)-\(newPosts.first?.no ?? 0)",

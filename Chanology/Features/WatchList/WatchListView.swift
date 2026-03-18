@@ -44,10 +44,12 @@ struct WatchListView: View {
             ThreadView(board: target.board, threadNo: target.threadNo, subject: target.subject, scrollToLastRead: true)
         }
         .onChange(of: coordinator.pendingThread?.threadNo) { _, _ in
-            if let pending = coordinator.pendingThread {
-                pendingTarget = WatchedThreadTarget(board: pending.board, threadNo: pending.threadNo, subject: pending.subject)
-                coordinator.pendingThread = nil
-            }
+            consumePendingThread()
+        }
+        .task {
+            // Small delay to let the view finish appearing before navigating
+            try? await Task.sleep(for: .milliseconds(300))
+            consumePendingThread()
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -67,6 +69,13 @@ struct WatchListView: View {
                 }
             }
             #endif
+        }
+    }
+
+    private func consumePendingThread() {
+        if let pending = coordinator.pendingThread {
+            pendingTarget = WatchedThreadTarget(board: pending.board, threadNo: pending.threadNo, subject: pending.subject)
+            coordinator.pendingThread = nil
         }
     }
 }
