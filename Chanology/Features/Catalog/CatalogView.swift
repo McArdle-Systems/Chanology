@@ -33,6 +33,19 @@ struct CatalogView: View {
             ThreadView(board: board.board, threadNo: thread.no, subject: thread.decodedSubject ?? thread.plainTextComment ?? "Thread")
         }
         .searchable(text: $vm.searchText, prompt: "Search threads")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Sort", selection: $vm.sortOrder) {
+                        ForEach(CatalogSortOrder.allCases, id: \.self) { order in
+                            Text(order.rawValue)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+            }
+        }
         .task { await vm.load() }
         .refreshable { await vm.load() }
         .alert("Error", isPresented: .constant(vm.error != nil)) {
@@ -136,12 +149,19 @@ private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String?
     .padding(.vertical, 4)
 }
 
+enum CatalogSortOrder: String, CaseIterable {
+    case bumpOrder = "Bump Order"
+    case mostReplies = "Most Replies"
+    case newest = "Newest Threads"
+}
+
 @Observable
 @MainActor
 class CatalogViewModel {
     let board: Board
     var threads: [CatalogThread] = []
     var searchText: String = ""
+    var sortOrder: CatalogSortOrder = .bumpOrder
     var isLoading = false
     var error: Error?
 
@@ -150,8 +170,17 @@ class CatalogViewModel {
     }
 
     var filteredThreads: [CatalogThread] {
-        guard !searchText.isEmpty else { return threads }
-        return threads.filter { thread in
+        let sorted: [CatalogThread]
+        switch sortOrder {
+        case .bumpOrder:
+            sorted = threads
+        case .mostReplies:
+            sorted = threads.sorted { $0.replies > $1.replies }
+        case .newest:
+            sorted = threads.sorted { $0.no > $1.no }
+        }
+        guard !searchText.isEmpty else { return sorted }
+        return sorted.filter { thread in
             thread.sub?.localizedCaseInsensitiveContains(searchText) == true ||
             thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true
         }

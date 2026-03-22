@@ -30,6 +30,7 @@ struct ThreadView: View {
     @State private var showFullTitle = false
     @State private var showCompose = false
     @State private var showLogin = false
+    @State private var showArchivedToast = false
     @State private var autoRefreshTask: Task<Void, Never>?
     @State private var visiblePosts: Set<Int> = []  // Track which posts are currently visible
     @Query private var watchedThreads: [WatchedThread]
@@ -199,6 +200,19 @@ struct ThreadView: View {
         .overlay(alignment: .bottomTrailing) {
             composeButton
         }
+        .overlay(alignment: .bottom) {
+            if showArchivedToast {
+                Text("This thread has been archived and can no longer be replied to.")
+                    .font(.subheadline)
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                    .shadow(radius: 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 80)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showArchivedToast)
         .sheet(isPresented: $showCompose) {
             ComposeView(
                 board: board,
@@ -227,10 +241,21 @@ struct ThreadView: View {
         }
     }
 
+    private var isThreadClosed: Bool {
+        guard let op = vm.posts.first else { return false }
+        return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
+    }
+
     @ViewBuilder
     private var composeButton: some View {
         Button {
-            if ChanPostAPI.shared.isAuthenticated {
+            if isThreadClosed {
+                showArchivedToast = true
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    showArchivedToast = false
+                }
+            } else if ChanPostAPI.shared.isAuthenticated {
                 showCompose = true
             } else {
                 showLogin = true
@@ -238,7 +263,8 @@ struct ThreadView: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "square.and.pencil")
-                if !selectedQuotes.isEmpty {
+                    .symbolVariant(isThreadClosed ? .slash : .none)
+                if !selectedQuotes.isEmpty && !isThreadClosed {
                     Text("\(selectedQuotes.count)")
                         .font(.caption)
                         .fontWeight(.bold)
@@ -246,6 +272,7 @@ struct ThreadView: View {
             }
             .font(.title3)
             .padding()
+            .foregroundStyle(isThreadClosed ? .secondary : .primary)
             .background(.ultraThinMaterial, in: Circle())
             .shadow(radius: 4)
         }
@@ -958,14 +985,17 @@ private func mockPost(
     // meme flag 2 letter code
     boardFlag: String? = nil,
     // meme flag display name
-    flagName: String? = nil
+    flagName: String? = nil,
+    closed: Int? = nil,
+    archived: Int? = nil
 ) -> Post {
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": no, "now": "01/01/25(Wed)12:30:00",
         "name": "Anonymous", "id": id as Any,
         "com": com, "resto": resto, "sub": sub as Any,
         "country": country as Any, "country_name": countryName as Any,
-        "board_flag": boardFlag as Any, "flag_name": flagName as Any
+        "board_flag": boardFlag as Any, "flag_name": flagName as Any,
+        "closed": closed as Any, "archived": archived as Any
     ] as [String: Any])
     var p = try! JSONDecoder().decode(Post.self, from: data)
     p._board = "g"
@@ -982,6 +1012,22 @@ private func mockPost(
                 mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Some subject"),
                 mockPost(no: 12346, com: ##"<span class="quote">&gt;be me</span><br>&gt;write Swift code all day<br><a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>genuinely enjoying it &#039;desu"##, resto: 12345),
                 mockPost(no: 12347, com: "Anyone else think Rust is overrated? I&#039;ve been writing C for 20 years and never had memory issues.", id: nil, resto: 12345),
+            ]
+        )
+    }
+    .modelContainer(for: WatchedThread.self, inMemory: true)
+}
+
+#Preview("Thread — Archived") {
+    NavigationStack {
+        ThreadView(
+            board: "g",
+            threadNo: 12345,
+            subject: "Post your desktop / tech setups.",
+            mockPosts: [
+                mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Post your desktop / tech setups.", closed: 1, archived: 1),
+                mockPost(no: 12346, com: "Nice setup anon", resto: 12345),
+                mockPost(no: 12347, com: "Thread archived, RIP", resto: 12345),
             ]
         )
     }
