@@ -42,7 +42,7 @@ enum BackgroundRefreshHandler {
     /// The actual polling work. Fetches each watched thread and fires local
     /// notifications for new posts. Designed to complete well within 30s.
     /// Pass a `ModelContext` when calling from the UI to keep SwiftUI's @Query in sync.
-    static func performRefresh(using existingContext: ModelContext? = nil) async {
+    static func performRefresh(using existingContext: sending ModelContext? = nil) async {
         let context: ModelContext
         if let existingContext {
             context = existingContext
