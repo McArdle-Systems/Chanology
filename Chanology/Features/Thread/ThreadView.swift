@@ -557,7 +557,7 @@ struct PostView: View {
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
-                                    .offset(y: -28)
+                                    .offset(y: -44)
                                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
                                     .animation(.easeOut(duration: 0.15), value: showPosterPostCount)
                                     .zIndex(100)
