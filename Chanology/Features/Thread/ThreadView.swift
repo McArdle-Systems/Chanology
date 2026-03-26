@@ -608,7 +608,7 @@ struct PostView: View {
                             }
                         } label: {
                             Text(verbatim: ">>\(replyNo)")
-                                .font(.caption2)
+                                .font(.caption2.monospaced())
                                 .foregroundStyle(Color.accentColor)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
