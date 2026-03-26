@@ -27,7 +27,6 @@ struct ThreadView: View {
     @State private var newRepliesMarkerPostNo: Int?
     @State private var replyMap: [Int: [Int]] = [:]
     @State private var selectedQuotes: [Int] = []
-    @State private var highlightedPosterID: String?
     @State private var showFullTitle = false
     @State private var showCompose = false
     @State private var showLogin = false
@@ -288,33 +287,14 @@ struct ThreadView: View {
         return quoted.contains(where: watched.myPostNumbers.contains)
     }
 
-    /// The post numbers this user has made in the current thread.
-    private var myPostNumbers: [Int] {
-        watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo })?.myPostNumbers ?? []
-    }
-
-    /// Count of posts per poster ID in this thread.
-    private var posterPostCounts: [String: Int] {
-        var counts: [String: Int] = [:]
-        for post in vm.posts {
-            if let id = post.posterID {
-                counts[id, default: 0] += 1
-            }
-        }
-        return counts
-    }
-
     @ViewBuilder
     private func postRow(_ post: Post) -> some View {
         let isHighlighted = highlightedPostNo == post.no
         let isUserReply = isReplyToUser(post)
-        let isPosterHighlighted = highlightedPosterID != nil && post.posterID == highlightedPosterID
         PostView(
             post: post,
             replyingPosts: replyMap[post.no] ?? [],
             isQuoteSelected: selectedQuotes.contains(post.no),
-            myPostNumbers: myPostNumbers,
-            posterPostCounts: posterPostCounts,
             onImageTap: { url in expandedImageURL = url },
             onPostNumberTap: { postNo in
                 if let idx = selectedQuotes.firstIndex(of: postNo) {
@@ -322,31 +302,15 @@ struct ThreadView: View {
                 } else {
                     selectedQuotes.append(postNo)
                 }
-            },
-            onPosterIDTap: { posterID in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if highlightedPosterID == posterID {
-                        highlightedPosterID = nil
-                    } else {
-                        highlightedPosterID = posterID
-                    }
-                }
             }
         )
         .id(post.no)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(
-                    isPosterHighlighted ? Color.yellow :
-                    isUserReply ? Color.orange : Color.accentColor,
-                    lineWidth: isPosterHighlighted ? 2 : (isUserReply ? 1.5 : 2)
-                )
-                .shadow(
-                    color: isPosterHighlighted ? Color.yellow.opacity(0.5) :
-                           isUserReply ? Color.orange.opacity(0.5) : Color.accentColor.opacity(0.6),
-                    radius: isHighlighted ? 8 : (isPosterHighlighted ? 6 : (isUserReply ? 6 : 0))
-                )
-                .opacity(isHighlighted || isUserReply || isPosterHighlighted ? 1 : 0)
+                .stroke(isUserReply ? Color.orange : Color.accentColor, lineWidth: isUserReply ? 1.5 : 2)
+                .shadow(color: isUserReply ? Color.orange.opacity(0.5) : Color.accentColor.opacity(0.6),
+                        radius: isHighlighted ? 8 : (isUserReply ? 6 : 0))
+                .opacity(isHighlighted || isUserReply ? 1 : 0)
                 .padding(.horizontal, 4)
         )
         .environment(\.openURL, OpenURLAction { url in
@@ -509,14 +473,10 @@ struct PostView: View {
     let post: Post
     var replyingPosts: [Int] = []
     var isQuoteSelected: Bool = false
-    var myPostNumbers: [Int] = []
-    var posterPostCounts: [String: Int] = [:]
     var onImageTap: ((URL) -> Void)?
     var onPostNumberTap: ((Int) -> Void)?
-    var onPosterIDTap: ((String) -> Void)?
 
     @Environment(\.openURL) private var openURL
-    @State private var showPosterPostCount = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -538,31 +498,6 @@ struct PostView: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.gray.opacity(0.5), in: Capsule())
-                        .onTapGesture {
-                            onPosterIDTap?(id)
-                        }
-                        .onLongPressGesture(
-                            minimumDuration: 0.3,
-                            pressing: { pressing in
-                                showPosterPostCount = pressing
-                            },
-                            perform: {}
-                        )
-                        .overlay(alignment: .top) {
-                            if showPosterPostCount, let count = posterPostCounts[id] {
-                                Text("\(count) post\(count == 1 ? "" : "s") by this ID")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
-                                    .offset(y: -28)
-                                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                                    .animation(.easeOut(duration: 0.15), value: showPosterPostCount)
-                                    .zIndex(100)
-                            }
-                        }
                 }
                 // Country flag (emoji)
                 if let emoji = post.countryEmoji {
@@ -655,7 +590,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                Text(PostHTMLRenderer.render(html, myPostNumbers: myPostNumbers))
+                Text(PostHTMLRenderer.render(html))
                     .font(.body)
             }
 
@@ -667,29 +602,17 @@ struct PostView: View {
             if !replyingPosts.isEmpty {
                 FlowLayout(spacing: 6) {
                     ForEach(replyingPosts, id: \.self) { replyNo in
-                        let isYou = myPostNumbers.contains(replyNo)
                         Button {
                             if let url = URL(string: "chanology://post/\(replyNo)") {
                                 openURL(url)
                             }
                         } label: {
-                            HStack(spacing: 2) {
-                                Text(verbatim: ">>\(replyNo)")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.accentColor)
-                                if isYou {
-                                    Text("(You)")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(Color.orange)
-                                }
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                (isYou ? Color.orange : Color.accentColor).opacity(0.12),
-                                in: Capsule()
-                            )
+                            Text(verbatim: ">>\(replyNo)")
+                                .font(.caption2)
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor.opacity(0.12), in: Capsule())
                         }
                         .buttonStyle(.plain)
                     }
