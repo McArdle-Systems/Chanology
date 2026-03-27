@@ -51,6 +51,7 @@ struct WatchListView: View {
             try? await Task.sleep(for: .milliseconds(300))
             consumePendingThread()
         }
+        
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !watchedThreads.isEmpty {
@@ -60,9 +61,9 @@ struct WatchListView: View {
             #if DEBUG
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    let ctx = modelContext
-                    Task { @MainActor in
-                        await BackgroundRefreshHandler.performRefresh(using: ctx)
+                    let container = modelContext.container
+                    Task {
+                        await BackgroundRefreshHandler.performRefresh(using: ModelContext(container))
                     }
                 } label: {
                     Image(systemName: "arrow.clockwise")

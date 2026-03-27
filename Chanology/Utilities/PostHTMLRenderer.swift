@@ -18,7 +18,46 @@ enum PostHTMLRenderer {
 
     // MARK: - Public
 
-    static func render(_ html: String) -> AttributedString {
+    /// Renders HTML with optional (You) markers on quotelinks that reference your posts.
+    static func render(_ html: String, myPostNumbers: [Int] = []) -> AttributedString {
+        let result = renderBase(html)
+        guard !myPostNumbers.isEmpty else { return result }
+        return appendYouMarkers(to: result, myPostNumbers: Set(myPostNumbers))
+    }
+
+    /// Appends " (You)" in orange after any quotelink whose target is one of myPostNumbers.
+    private static func appendYouMarkers(to input: AttributedString, myPostNumbers: Set<Int>) -> AttributedString {
+        var result = AttributedString()
+        var index = input.startIndex
+
+        while index < input.endIndex {
+            let run = input.runs[index]
+            let range = run.range
+
+            // Check if this run has a link to one of our posts
+            if let link = run.link,
+               link.scheme == "chanology",
+               link.host() == "post",
+               let postNo = Int(link.lastPathComponent),
+               myPostNumbers.contains(postNo) {
+                // Append the original quotelink run
+                result.append(input[range])
+                // Append " (You)" marker
+                var youMarker = AttributedString(" (You)")
+                youMarker.foregroundColor = .orange
+                youMarker.font = .caption2.bold()
+                result.append(youMarker)
+            } else {
+                result.append(input[range])
+            }
+
+            index = run.range.upperBound
+        }
+
+        return result
+    }
+
+    private static func renderBase(_ html: String) -> AttributedString {
         var result = AttributedString()
         var styleStack: [Style] = [Style()]
         var index = html.startIndex
