@@ -676,11 +676,11 @@ struct PostView: View {
                         } label: {
                             HStack(spacing: 2) {
                                 Text(verbatim: ">>\(replyNo)")
-                                    .font(.caption2)
+                                    .font(.caption2.monospaced())
                                     .foregroundStyle(Color.accentColor)
                                 if isYou {
                                     Text("(You)")
-                                        .font(.caption2)
+                                        .font(.caption2.monospaced())
                                         .fontWeight(.semibold)
                                         .foregroundStyle(Color.orange)
                                 }
