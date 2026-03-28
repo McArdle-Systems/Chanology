@@ -24,6 +24,7 @@
 		AB8B4ECA9616F372A298A134 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 230475872652212EE7EA09BE /* Assets.xcassets */; };
 		B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */; };
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
+		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
 		C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28EB82DFF125BF662041087 /* NotificationService.swift */; };
 		D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */; };
 		FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */; };
@@ -35,7 +36,6 @@
 		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
-		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +67,7 @@
 		AA00000000000000000003 /* PostHTMLRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHTMLRendererTests.swift; sourceTree = "<group>"; };
 		AA00000000000000000004 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
 		AA00000000000000000005 /* ThreadRefreshLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogicTests.swift; sourceTree = "<group>"; };
+		BB00000000000000000002 /* ForegroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRefreshService.swift; sourceTree = "<group>"; };
 		C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadView.swift; sourceTree = "<group>"; };
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
@@ -80,7 +81,6 @@
 		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
-		BB00000000000000000002 /* ForegroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRefreshService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -190,6 +190,14 @@
 			path = ChanologyTests;
 			sourceTree = "<group>";
 		};
+		BB00000000000000000003 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000000000002 /* ForegroundRefreshService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		BFD295CE6461406E753383E7 /* Boards */ = {
 			isa = PBXGroup;
 			children = (
@@ -250,14 +258,6 @@
 				603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */,
 			);
 			path = App;
-			sourceTree = "<group>";
-		};
-		BB00000000000000000003 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000000000000000002 /* ForegroundRefreshService.swift */,
-			);
-			path = Services;
 			sourceTree = "<group>";
 		};
 		FA91B0712F649DA20098EC87 /* Auth */ = {

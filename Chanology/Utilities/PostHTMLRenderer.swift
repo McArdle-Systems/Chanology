@@ -58,15 +58,14 @@ enum PostHTMLRenderer {
     }
 
     private static func renderBase(_ html: String) -> AttributedString {
+        // Strip <wbr> tags before parsing. 4chan inserts these as word-break hints
+        // inside bare URLs (e.g. "https://example.com/long<wbr>path"), which splits
+        // the URL into separate text nodes and breaks linkification.
+        let html = html.replacingOccurrences(of: "<wbr>", with: "")
+
         var result = AttributedString()
         var styleStack: [Style] = [Style()]
         var index = html.startIndex
-
-        // Tracks external <a> tags so we can emit the full href as display text
-        // and swallow 4chan's truncated overflow after </a>.
-        var externalLinkHref: String? = nil   // set when inside an external <a>
-        var skipInnerText = false              // skip truncated text inside <a>
-        var pendingOverflow: String? = nil     // the href suffix to swallow after </a>
 
         while index < html.endIndex {
             if html[index] == "<" {
@@ -86,37 +85,11 @@ enum PostHTMLRenderer {
                 if isClose {
                     switch tagName {
                     case "br", "wbr": break
-                    case "a":
-                        // Closing an external link — figure out what overflow to swallow
-                        if let href = externalLinkHref {
-                            // Emit the full URL as a tappable link
-                            if let url = URL(string: href) {
-                                var linkChunk = AttributedString(href)
-                                linkChunk.link = url
-                                linkChunk.foregroundColor = .accentColor
-                                result.append(linkChunk)
-                            }
-                            externalLinkHref = nil
-                            skipInnerText = false
-                        }
-                        if styleStack.count > 1 { styleStack.removeLast() }
                     default:
                         if styleStack.count > 1 { styleStack.removeLast() }
                     }
                 } else {
                     let attrs = parseAttrs(String(body[nameEnd...]))
-                    // Detect external <a> and capture the href for full-URL rendering
-                    if tagName == "a",
-                       attrs["class"] != "quotelink",
-                       let href = attrs["href"],
-                       let url = URL(string: href),
-                       url.scheme == "http" || url.scheme == "https" {
-                        externalLinkHref = href
-                        skipInnerText = true
-                        // Figure out the overflow: difference between href and
-                        // the inner text that 4chan will put inside the tag.
-                        // We'll compute it when we see the inner text.
-                    }
                     applyOpenTag(
                         name: String(tagName),
                         attrs: attrs,
@@ -130,35 +103,6 @@ enum PostHTMLRenderer {
                 index = textEnd
 
                 let decoded = decodeEntities(raw)
-
-                // If we're inside an external <a>, skip the truncated visible text
-                // and compute what overflow will follow after </a>
-                if skipInnerText, let href = externalLinkHref {
-                    // 4chan truncates: inner text is a prefix of the href.
-                    // The overflow after </a> will be href[innerText.count...]
-                    // Store it so we can strip it from the next text node.
-                    if href.hasPrefix(decoded) || href.hasPrefix("https://" + decoded) || href.hasPrefix("http://" + decoded) {
-                        pendingOverflow = String(href.dropFirst(decoded.count))
-                        if pendingOverflow?.isEmpty == true { pendingOverflow = nil }
-                    }
-                    continue
-                }
-
-                // Swallow overflow text from a truncated external link
-                if let overflow = pendingOverflow {
-                    pendingOverflow = nil
-                    if decoded.hasPrefix(overflow) {
-                        // Strip the overflow portion, keep any remaining text
-                        let remaining = String(decoded.dropFirst(overflow.count))
-                        if !remaining.isEmpty {
-                            let currentStyle = styleStack.last ?? Style()
-                            result.append(linkifyURLs(in: remaining, style: currentStyle))
-                        }
-                        continue
-                    }
-                    // Overflow didn't match — fall through and render normally
-                }
-
                 let currentStyle = styleStack.last ?? Style()
 
                 // If the current style already has a link (we're inside a quotelink <a> tag),
