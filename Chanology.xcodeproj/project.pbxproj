@@ -35,6 +35,7 @@
 		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
+		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +80,7 @@
 		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
+		BB00000000000000000002 /* ForegroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRefreshService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +174,7 @@
 				E373CFB7B6DD356463773DDF /* Storage */,
 				6362B9F198B67709A8E9869B /* Utilities */,
 				FA91B0712F649DA20098EC87 /* Auth */,
+				BB00000000000000000003 /* Services */,
 			);
 			path = Chanology;
 			sourceTree = "<group>";
@@ -247,6 +250,14 @@
 				603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		BB00000000000000000003 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000000000000000002 /* ForegroundRefreshService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		FA91B0712F649DA20098EC87 /* Auth */ = {
@@ -374,6 +385,7 @@
 				FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */,
 				D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */,
 				FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */,
+				BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

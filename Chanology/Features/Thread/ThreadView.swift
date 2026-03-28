@@ -19,7 +19,7 @@ struct ThreadView: View {
 
     let scrollToLastRead: Bool
 
-    @State private var vm: ThreadViewModel
+    @State private var service = ForegroundRefreshService.shared
     @State private var expandedImageURL: URL?
     @State private var scrollProxy: ScrollViewProxy?
     @State private var crossThreadTarget: CrossThreadTarget?
@@ -32,18 +32,20 @@ struct ThreadView: View {
     @State private var showCompose = false
     @State private var showLogin = false
     @State private var showArchivedToast = false
-    @State private var autoRefreshTask: Task<Void, Never>?
-    @State private var visiblePosts: Set<Int> = []  // Track which posts are currently visible
+    @State private var visiblePosts: Set<Int> = []
+    @State private var lastKnownPostCount: Int = 0
     @Query private var watchedThreads: [WatchedThread]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+
+    /// For mock/preview support only
+    @State private var mockPosts: [Post]?
 
     init(board: String, threadNo: Int, subject: String, scrollToLastRead: Bool = false) {
         self.board = board
         self.threadNo = threadNo
         self.subject = subject
         self.scrollToLastRead = scrollToLastRead
-        _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo))
     }
 
     fileprivate init(board: String, threadNo: Int, subject: String, mockPosts: [Post]) {
@@ -51,7 +53,20 @@ struct ThreadView: View {
         self.threadNo = threadNo
         self.subject = subject
         self.scrollToLastRead = false
-        _vm = State(initialValue: ThreadViewModel(board: board, threadNo: threadNo, mockPosts: mockPosts))
+        _mockPosts = State(initialValue: mockPosts)
+    }
+
+    /// Posts from the service (or mock data for previews)
+    private var posts: [Post] {
+        mockPosts ?? service.posts(board: board, threadNo: threadNo)
+    }
+
+    private var isLoading: Bool {
+        mockPosts == nil && service.isThreadLoading(board: board, threadNo: threadNo)
+    }
+
+    private var threadError: Error? {
+        mockPosts == nil ? service.getThreadError(board: board, threadNo: threadNo) : nil
     }
 
     private var isWatched: Bool {
@@ -60,13 +75,13 @@ struct ThreadView: View {
 
     var body: some View {
         Group {
-            if vm.isLoading && vm.posts.isEmpty {
+            if isLoading && posts.isEmpty {
                 ProgressView("Loading thread…")
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(vm.posts) { post in
+                            ForEach(posts) { post in
                                 if post.no == newRepliesMarkerPostNo {
                                     NewRepliesMarker()
                                         .id("new-replies-marker")
@@ -150,13 +165,18 @@ struct ThreadView: View {
                 .first(where: { $0.board == board && $0.threadNo == threadNo })?
                 .lastReadPostNo
 
-            await vm.load()
-            replyMap = ReplyMapBuilder.build(from: vm.posts)
+            // Fetch from the service (or use mock data for previews)
+            if mockPosts == nil {
+                await service.fetchThread(board: board, threadNo: threadNo)
+            }
+
+            replyMap = ReplyMapBuilder.build(from: posts)
+            lastKnownPostCount = posts.count
 
             // Find the first post after the read boundary
             let marker = ThreadRefreshLogic.markerOnInitialLoad(
                 lastReadPostNo: lastRead,
-                postNos: vm.posts.map(\.no)
+                postNos: posts.map(\.no)
             )
             if let postNo = marker.markerPostNo {
                 newRepliesMarkerPostNo = postNo
@@ -168,24 +188,15 @@ struct ThreadView: View {
                     }
                 }
             }
-            
-            // Start auto-refresh if this thread is watched
-            if isWatched {
-                startAutoRefresh()
-            }
         }
         .refreshable {
             await refreshThread(userInitiated: true)
         }
-        .onDisappear { 
+        .onDisappear {
             markVisiblePostsAsRead()
-            stopAutoRefresh()
-        }
-        .onChange(of: isWatched) { _, watched in
-            if watched {
-                startAutoRefresh()
-            } else {
-                stopAutoRefresh()
+            // Evict cached posts if the thread isn't watched (save memory)
+            if !isWatched {
+                service.evictThread(board: board, threadNo: threadNo)
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -193,10 +204,23 @@ struct ThreadView: View {
                 markVisiblePostsAsRead()
             }
         }
-        .alert("Error", isPresented: .constant(vm.error != nil)) {
-            Button("OK") { vm.error = nil }
+        // React to posts changing from the background poller
+        .onChange(of: posts.count) { oldCount, newCount in
+            guard newCount > lastKnownPostCount, lastKnownPostCount > 0 else {
+                lastKnownPostCount = newCount
+                return
+            }
+            lastKnownPostCount = newCount
+            onAutoRefreshPostsChanged()
+        }
+        .alert("Error", isPresented: .constant(threadError != nil)) {
+            Button("OK") {
+                if mockPosts == nil {
+                    service.clearThreadError(board: board, threadNo: threadNo)
+                }
+            }
         } message: {
-            Text(vm.error?.localizedDescription ?? "")
+            Text(threadError?.localizedDescription ?? "")
         }
         .overlay(alignment: .bottomTrailing) {
             composeButton
@@ -225,11 +249,10 @@ struct ThreadView: View {
                     if let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
                         watched.myPostNumbers.append(newPostNo)
                     }
-                    // Refresh thread to show new post (without triggering the "new posts" marker)
+                    // Refresh thread to show new post
                     Task {
-                        await vm.load(refresh: true)
-                        replyMap = ReplyMapBuilder.build(from: vm.posts)
-                        // Don't show marker for our own posts
+                        await service.fetchThread(board: board, threadNo: threadNo)
+                        replyMap = ReplyMapBuilder.build(from: posts)
                     }
                 }
             )
@@ -243,7 +266,7 @@ struct ThreadView: View {
     }
 
     private var isThreadClosed: Bool {
-        guard let op = vm.posts.first else { return false }
+        guard let op = posts.first else { return false }
         return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
     }
 
@@ -296,7 +319,7 @@ struct ThreadView: View {
     /// Count of posts per poster ID in this thread.
     private var posterPostCounts: [String: Int] {
         var counts: [String: Int] = [:]
-        for post in vm.posts {
+        for post in posts {
             if let id = post.posterID {
                 counts[id, default: 0] += 1
             }
@@ -387,9 +410,6 @@ struct ThreadView: View {
             }
             return .handled
         case "board":
-            // Cross-board link: chanology://board/g
-            // Board navigation requires the Board model; for now open the thread list isn't possible
-            // without fetching the board metadata. We'll skip this gracefully.
             return .discarded
         default:
             return .systemAction
@@ -400,10 +420,10 @@ struct ThreadView: View {
     private func markVisiblePostsAsRead() {
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }),
               !visiblePosts.isEmpty else { return }
-        
+
         if let result = ThreadRefreshLogic.readStateAfterScroll(
             visiblePosts: visiblePosts,
-            allPostNos: vm.posts.map(\.no),
+            allPostNos: posts.map(\.no),
             currentLastReadPostNo: watched.lastReadPostNo
         ) {
             watched.lastReadPostNo = result.newLastReadPostNo
@@ -413,13 +433,13 @@ struct ThreadView: View {
                 watched.newReplyCount = 0
             }
         }
-        
+
         // Always update lastSeenPostNo to the absolute last post
-        if let lastPost = vm.posts.last {
+        if let lastPost = posts.last {
             watched.lastSeenPostNo = lastPost.no
         }
     }
-    
+
     private func toggleWatch() {
         if let existing = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
             modelContext.delete(existing)
@@ -428,25 +448,22 @@ struct ThreadView: View {
                 board: board,
                 threadNo: threadNo,
                 subject: subject,
-                lastSeenPostNo: vm.posts.last?.no ?? 0
+                lastSeenPostNo: posts.last?.no ?? 0
             )
             modelContext.insert(watched)
         }
     }
-    
-    /// Shared refresh logic
-    /// - Parameter userInitiated: If true, marks everything as read and clears the marker
-    private func refreshThread(userInitiated: Bool = false) async {
-        // Capture the last known post number before loading
-        let lastPostNoBefore = vm.posts.last?.no
-        
-        await vm.load(refresh: true)
-        replyMap = ReplyMapBuilder.build(from: vm.posts)
-        
-        let postNos = vm.posts.map(\.no)
-        
-        // Place or clear the new-replies marker for any user-initiated refresh,
-        // regardless of whether the thread is watched.
+
+    /// Handle user-initiated refresh (pull-to-refresh or bottom button)
+    private func refreshThread(userInitiated: Bool) async {
+        let lastPostNoBefore = posts.last?.no
+
+        await service.fetchThread(board: board, threadNo: threadNo)
+        replyMap = ReplyMapBuilder.build(from: posts)
+        lastKnownPostCount = posts.count
+
+        let postNos = posts.map(\.no)
+
         if userInitiated {
             let marker = ThreadRefreshLogic.markerAfterUserRefresh(
                 lastPostNoBefore: lastPostNoBefore,
@@ -454,11 +471,11 @@ struct ThreadView: View {
             )
             newRepliesMarkerPostNo = marker.markerPostNo
         }
-        
+
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) else {
             return
         }
-        
+
         if userInitiated {
             if let update = ThreadRefreshLogic.readStateAfterUserRefresh(postNosAfter: postNos) {
                 watched.lastReadPostNo = update.lastReadPostNo
@@ -466,42 +483,28 @@ struct ThreadView: View {
                 watched.newReplyCount = update.newReplyCount
                 watched.lastChecked = Date()
             }
-        } else {
-            if let update = ThreadRefreshLogic.autoRefreshUpdate(
-                currentMarkerPostNo: newRepliesMarkerPostNo,
-                lastReadPostNo: watched.lastReadPostNo,
-                lastSeenPostNo: watched.lastSeenPostNo,
-                postNosAfter: postNos
-            ) {
-                newRepliesMarkerPostNo = update.markerPostNo
-                watched.lastSeenPostNo = update.lastSeenPostNo
-                watched.newReplyCount = update.newReplyCount
-                watched.lastChecked = Date()
-            }
         }
     }
-    
-    /// Start auto-refresh timer (30 seconds interval for open watched threads)
-    private func startAutoRefresh() {
-        stopAutoRefresh() // Cancel any existing task
-        
-        autoRefreshTask = Task {
-            while !Task.isCancelled {
-                // Wait 30 seconds
-                try? await Task.sleep(for: .seconds(30))
-                
-                guard !Task.isCancelled else { break }
-                
-                // Perform background refresh (not user-initiated, so marker stays stable)
-                await refreshThread(userInitiated: false)
-            }
+
+    /// Called when the background poller updates posts for this thread
+    private func onAutoRefreshPostsChanged() {
+        replyMap = ReplyMapBuilder.build(from: posts)
+
+        guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) else {
+            return
         }
-    }
-    
-    /// Stop auto-refresh timer
-    private func stopAutoRefresh() {
-        autoRefreshTask?.cancel()
-        autoRefreshTask = nil
+
+        let postNos = posts.map(\.no)
+
+        if let update = ThreadRefreshLogic.autoRefreshUpdate(
+            currentMarkerPostNo: newRepliesMarkerPostNo,
+            lastReadPostNo: watched.lastReadPostNo,
+            lastSeenPostNo: watched.lastSeenPostNo,
+            postNosAfter: postNos
+        ) {
+            newRepliesMarkerPostNo = update.markerPostNo
+            // Note: lastSeenPostNo and newReplyCount are updated by the poller service itself
+        }
     }
 }
 
@@ -642,7 +645,7 @@ struct PostView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .onTapGesture { onImageTap?(url) }
                     }
-                    
+
                     // Filename display
                     if let filename = post.filename, let ext = post.ext {
                         Text("\(filename)\(ext)")
@@ -733,7 +736,7 @@ struct ExpandedImageView: View {
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    
+
     private var mediaType: MediaType {
         let ext = url.pathExtension.lowercased()
         switch ext {
@@ -747,7 +750,7 @@ struct ExpandedImageView: View {
             return .image
         }
     }
-    
+
     enum MediaType {
         case webm, mp4, gif, image
     }
@@ -770,18 +773,18 @@ struct ExpandedImageView: View {
             closeButton
                 .padding()
         }
-        .onTapGesture { 
+        .onTapGesture {
             if mediaType == .image {
                 dismiss()
             }
         }
     }
-    
+
     private var gifView: some View {
         AnimatedImageView(url: url)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var imageView: some View {
         AsyncImage(url: url) { image in
             image
@@ -797,7 +800,7 @@ struct ExpandedImageView: View {
                 .tint(.white)
         }
     }
-    
+
     private var closeButton: some View {
         Button {
             dismiss()
@@ -808,7 +811,7 @@ struct ExpandedImageView: View {
                 .foregroundStyle(.white, .gray.opacity(0.6))
         }
     }
-    
+
     private var magnifyGesture: some Gesture {
         MagnifyGesture()
             .onChanged { value in
@@ -824,7 +827,7 @@ struct ExpandedImageView: View {
                 }
             }
     }
-    
+
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { value in
@@ -838,7 +841,7 @@ struct ExpandedImageView: View {
                 lastOffset = offset
             }
     }
-    
+
     private func handleDoubleTap() {
         withAnimation {
             if scale > 1 {
@@ -849,7 +852,7 @@ struct ExpandedImageView: View {
             }
         }
     }
-    
+
     private func resetZoom() {
         scale = 1.0
         lastScale = 1.0
@@ -864,7 +867,7 @@ struct VideoPlayerView: View {
     let url: URL
     @State private var player: AVPlayer?
     @State private var looper: AVPlayerLooper?
-    
+
     var body: some View {
         Group {
             if let player {
@@ -882,26 +885,24 @@ struct VideoPlayerView: View {
             cleanup()
         }
     }
-    
+
     private func setupPlayer() {
-        // Create player with proper audio session configuration
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to configure audio session: \(error)")
         }
-        
+
         let playerItem = AVPlayerItem(url: url)
         let queuePlayer = AVQueuePlayer(playerItem: playerItem)
-        
-        // Set up looping
+
         looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
-        
+
         player = queuePlayer
         player?.play()
     }
-    
+
     private func cleanup() {
         player?.pause()
         looper = nil
@@ -913,22 +914,21 @@ struct VideoPlayerView: View {
 
 struct WebMPlayerView: UIViewRepresentable {
     let url: URL
-    
+
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
-        
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.backgroundColor = .black
         webView.isOpaque = false
         webView.scrollView.isScrollEnabled = false
-        
+
         return webView
     }
-    
+
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Create HTML to play the video with looping
         let html = """
         <!DOCTYPE html>
         <html>
@@ -961,7 +961,6 @@ struct WebMPlayerView: UIViewRepresentable {
                 Your browser does not support the video tag.
             </video>
             <script>
-                // Try to play with sound if possible
                 const video = document.querySelector('video');
                 video.muted = false;
                 video.play().catch(() => {
@@ -973,7 +972,7 @@ struct WebMPlayerView: UIViewRepresentable {
         </body>
         </html>
         """
-        
+
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
@@ -982,31 +981,27 @@ struct WebMPlayerView: UIViewRepresentable {
 
 struct AnimatedImageView: UIViewRepresentable {
     let url: URL
-    
+
     func makeUIView(context: Context) -> UIImageView {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.setContentHuggingPriority(.defaultHigh, for: .vertical)
         imageView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        
-        // Load the image asynchronously
+
         Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
-                
-                // Create animated image from GIF data
+
                 if let source = CGImageSourceCreateWithData(data as CFData, nil) {
                     let count = CGImageSourceGetCount(source)
-                    
+
                     if count > 1 {
-                        // Animated GIF
                         var images: [UIImage] = []
                         var totalDuration: TimeInterval = 0
-                        
+
                         for i in 0..<count {
                             if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
-                                // Get frame duration
-                                var duration: TimeInterval = 0.1 // Default
+                                var duration: TimeInterval = 0.1
                                 if let properties = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
                                    let gifProperties = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
                                     if let delayTime = gifProperties[kCGImagePropertyGIFUnclampedDelayTime] as? TimeInterval, delayTime > 0 {
@@ -1015,34 +1010,32 @@ struct AnimatedImageView: UIViewRepresentable {
                                         duration = delayTime
                                     }
                                 }
-                                
+
                                 totalDuration += duration
                                 images.append(UIImage(cgImage: cgImage))
                             }
                         }
-                        
+
                         await MainActor.run {
                             imageView.animationImages = images
                             imageView.animationDuration = totalDuration
-                            imageView.animationRepeatCount = 0 // Infinite loop
+                            imageView.animationRepeatCount = 0
                             imageView.startAnimating()
                         }
                     } else if count == 1, let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) {
-                        // Static image
                         await MainActor.run {
                             imageView.image = UIImage(cgImage: cgImage)
                         }
                     }
                 }
             } catch {
-                // Silently fail or show placeholder
                 print("Failed to load animated image: \(error)")
             }
         }
-        
+
         return imageView
     }
-    
+
     func updateUIView(_ uiView: UIImageView, context: Context) {
         // No updates needed
     }
@@ -1056,13 +1049,9 @@ private func mockPost(
     id: String? = "xKz9aB",
     resto: Int = 0,
     sub: String? = nil,
-    // 2 letter country
     country: String? = nil,
-    // full country name
     countryName: String? = nil,
-    // meme flag 2 letter code
     boardFlag: String? = nil,
-    // meme flag display name
     flagName: String? = nil,
     closed: Int? = nil,
     archived: Int? = nil
@@ -1144,7 +1133,7 @@ private func mockPost(
         resto: 99999,
         country: "US",
         countryName: "United States"
-        
+
     ))
     .padding()
 }
@@ -1167,7 +1156,6 @@ private func mockPost(
         com: "Check out this sick webm",
         resto: 99999
     )
-    // Simulate a webm attachment
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": 11111,
         "now": "01/01/25(Wed)12:30:00",
@@ -1187,7 +1175,6 @@ private func mockPost(
 }
 
 #Preview("Post — with gif") {
-    // Simulate a gif attachment
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": 11112,
         "now": "01/01/25(Wed)12:31:00",
@@ -1207,7 +1194,6 @@ private func mockPost(
 }
 
 #Preview("Post — with mp4") {
-    // Simulate an mp4 attachment
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": 11113,
         "now": "01/01/25(Wed)12:32:00",
@@ -1224,36 +1210,4 @@ private func mockPost(
     p._board = "g"
     return PostView(post: p)
         .padding()
-}
-
-@Observable
-@MainActor
-class ThreadViewModel {
-    let board: String
-    let threadNo: Int
-    var posts: [Post] = []
-    var isLoading = false
-    var error: Error?
-
-    init(board: String, threadNo: Int) {
-        self.board = board
-        self.threadNo = threadNo
-    }
-
-    init(board: String, threadNo: Int, mockPosts: [Post]) {
-        self.board = board
-        self.threadNo = threadNo
-        self.posts = mockPosts
-    }
-
-    func load(refresh: Bool = false) async {
-        guard posts.isEmpty || refresh else { return }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            posts = try await ChanAPI.shared.thread(board: board, no: threadNo)
-        } catch {
-            self.error = error
-        }
-    }
 }

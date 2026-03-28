@@ -51,25 +51,12 @@ struct WatchListView: View {
             try? await Task.sleep(for: .milliseconds(300))
             consumePendingThread()
         }
-        
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !watchedThreads.isEmpty {
                     EditButton()
                 }
             }
-            #if DEBUG
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let container = modelContext.container
-                    Task {
-                        await BackgroundRefreshHandler.performRefresh(using: ModelContext(container))
-                    }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-            }
-            #endif
         }
     }
 
