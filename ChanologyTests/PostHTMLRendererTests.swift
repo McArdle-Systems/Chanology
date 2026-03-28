@@ -169,3 +169,55 @@ import Testing
     let result = PostHTMLRenderer.render(html)
     #expect(String(result.characters) == "1 < 2 & 3 > 0")
 }
+
+// MARK: - External links
+
+@Test func render_externalLink_fullHrefDisplayed() {
+    // 4chan truncates the visible text inside <a> but keeps full URL in href
+    let html = #"<a href="https://truthsocial.com/@realDonaldTrump">https://truthsocial.com/@realDonald</a>Trump"#
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    // Should show the full URL, not truncated + overflow
+    #expect(text == "https://truthsocial.com/@realDonaldTrump")
+
+    // Should be a tappable link
+    var foundLink = false
+    for run in result.runs {
+        if let link = run.link {
+            foundLink = true
+            #expect(link.absoluteString == "https://truthsocial.com/@realDonaldTrump")
+        }
+    }
+    #expect(foundLink)
+}
+
+@Test func render_externalLink_noTruncation_worksNormally() {
+    // When 4chan doesn't truncate (short URL), it should still work
+    let html = #"<a href="https://x.com/foo">https://x.com/foo</a>"#
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://x.com/foo")
+}
+
+@Test func render_externalLink_followedByText() {
+    // Truncated link with text after the overflow
+    let html = #"<a href="https://www.youtube.com/user/whitehouse">https://www.youtube.com/user/whiteh</a>ouse<br>next line"#
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
+}
+
+@Test func render_externalLink_multipleOnSameLine() {
+    let html = #"<a href="https://a.com/longpath">https://a.com/long</a>path <a href="https://b.com/test">https://b.com/te</a>st"#
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://a.com/longpath https://b.com/test")
+}
+
+@Test func render_quotelink_notAffectedByExternalLinkLogic() {
+    // Quotelinks should still work normally
+    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a> some text"##
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == ">>12345 some text")
+}
