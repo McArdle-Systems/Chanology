@@ -661,6 +661,7 @@ struct PostView: View {
             if let html = post.com, !html.isEmpty {
                 Text(PostHTMLRenderer.render(html, myPostNumbers: myPostNumbers))
                     .font(.body)
+                    .textSelection(.enabled)
             }
 
             Text(post.now)
