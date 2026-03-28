@@ -96,9 +96,19 @@ enum PostHTMLRenderer {
                 let raw = String(html[index..<textEnd])
                 index = textEnd
 
-                var chunk = AttributedString(decodeEntities(raw))
-                applyStyle(styleStack.last ?? Style(), to: &chunk)
-                result.append(chunk)
+                let decoded = decodeEntities(raw)
+                let currentStyle = styleStack.last ?? Style()
+
+                // If the current style already has a link (we're inside an <a> tag),
+                // don't try to auto-detect URLs — just apply the style as-is.
+                if currentStyle.link != nil {
+                    var chunk = AttributedString(decoded)
+                    applyStyle(currentStyle, to: &chunk)
+                    result.append(chunk)
+                } else {
+                    // Auto-linkify bare URLs in plain text
+                    result.append(linkifyURLs(in: decoded, style: currentStyle))
+                }
             }
         }
 
@@ -140,6 +150,11 @@ enum PostHTMLRenderer {
             if attrs["class"] == "quotelink", let href = attrs["href"] {
                 s.color = .accentColor
                 s.link = Self.resolveQuoteLink(href)
+            } else if let href = attrs["href"], let url = URL(string: href),
+                      url.scheme == "http" || url.scheme == "https" {
+                // External link (YouTube, Twitter, etc.)
+                s.color = .accentColor
+                s.link = url
             }
             stack.append(s)
         case "b", "strong":
@@ -177,6 +192,63 @@ enum PostHTMLRenderer {
         case (false, false, true):  chunk.font = .system(.body, design: .monospaced)
         default: break
         }
+    }
+
+    // MARK: - Bare URL linkification
+
+    /// Detects bare http(s) URLs in text and makes them tappable links.
+    private static let urlDetector: NSDataDetector? = {
+        try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    }()
+
+    private static func linkifyURLs(in text: String, style: Style) -> AttributedString {
+        guard let detector = urlDetector else {
+            var chunk = AttributedString(text)
+            applyStyle(style, to: &chunk)
+            return chunk
+        }
+
+        let nsText = text as NSString
+        let matches = detector.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+
+        guard !matches.isEmpty else {
+            var chunk = AttributedString(text)
+            applyStyle(style, to: &chunk)
+            return chunk
+        }
+
+        var result = AttributedString()
+        var cursor = text.startIndex
+
+        for match in matches {
+            guard let range = Range(match.range, in: text), let url = match.url else { continue }
+
+            // Append text before this URL
+            if cursor < range.lowerBound {
+                var before = AttributedString(text[cursor..<range.lowerBound])
+                applyStyle(style, to: &before)
+                result.append(before)
+            }
+
+            // Append the URL as a tappable link
+            var linkChunk = AttributedString(text[range])
+            var linkStyle = style
+            linkStyle.link = url
+            linkStyle.color = .accentColor
+            applyStyle(linkStyle, to: &linkChunk)
+            result.append(linkChunk)
+
+            cursor = range.upperBound
+        }
+
+        // Append any remaining text after the last URL
+        if cursor < text.endIndex {
+            var after = AttributedString(text[cursor...])
+            applyStyle(style, to: &after)
+            result.append(after)
+        }
+
+        return result
     }
 
     // MARK: - Link resolution
