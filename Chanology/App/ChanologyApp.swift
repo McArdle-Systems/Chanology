@@ -18,10 +18,21 @@ struct ChanologyApp: App {
         WindowGroup {
             ContentView()
                 .modelContainer(sharedModelContainer)
+                .task {
+                    // Give the refresh service access to SwiftData
+                    ForegroundRefreshService.shared.modelContainer = sharedModelContainer
+                    ForegroundRefreshService.shared.startPolling()
+                }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .background {
+            switch newPhase {
+            case .active:
+                ForegroundRefreshService.shared.startPolling()
+            case .background:
+                ForegroundRefreshService.shared.stopPolling()
                 BackgroundRefreshHandler.scheduleRefresh()
+            default:
+                break
             }
         }
     }

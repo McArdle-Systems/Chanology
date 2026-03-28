@@ -2,21 +2,18 @@ import SwiftUI
 
 struct CatalogView: View {
     let board: Board
-    @State private var vm: CatalogViewModel
-
-    init(board: Board) {
-        self.board = board
-        _vm = State(initialValue: CatalogViewModel(board: board))
-    }
+    @State private var service = ForegroundRefreshService.shared
+    @State private var searchText: String = ""
+    @State private var sortOrder: CatalogSortOrder = .bumpOrder
 
     var body: some View {
         Group {
-            if vm.isLoading && vm.threads.isEmpty {
+            if service.isCatalogLoading(board: board.board) && service.catalogThreads(board: board.board).isEmpty {
                 ProgressView("Loading /\(board.board)/…")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(vm.filteredThreads) { thread in
+                        ForEach(filteredThreads) { thread in
                             NavigationLink(value: thread) {
                                 CatalogThreadRow(thread: thread, board: board.board)
                             }
@@ -32,11 +29,11 @@ struct CatalogView: View {
         .navigationDestination(for: CatalogThread.self) { thread in
             ThreadView(board: board.board, threadNo: thread.no, subject: thread.decodedSubject ?? thread.plainTextComment ?? "Thread")
         }
-        .searchable(text: $vm.searchText, prompt: "Search threads")
+        .searchable(text: $searchText, prompt: "Search threads")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Picker("Sort", selection: $vm.sortOrder) {
+                    Picker("Sort", selection: $sortOrder) {
                         ForEach(CatalogSortOrder.allCases, id: \.self) { order in
                             Text(order.rawValue)
                         }
@@ -46,12 +43,30 @@ struct CatalogView: View {
                 }
             }
         }
-        .task { await vm.load() }
-        .refreshable { await vm.load() }
-        .alert("Error", isPresented: .constant(vm.error != nil)) {
-            Button("OK") { vm.error = nil }
+        .task { await service.fetchCatalog(board: board.board) }
+        .refreshable { await service.fetchCatalog(board: board.board) }
+        .alert("Error", isPresented: .constant(service.catalogError[board.board] != nil)) {
+            Button("OK") { service.catalogError.removeValue(forKey: board.board) }
         } message: {
-            Text(vm.error?.localizedDescription ?? "")
+            Text(service.catalogError[board.board]?.localizedDescription ?? "")
+        }
+    }
+
+    private var filteredThreads: [CatalogThread] {
+        let threads = service.catalogThreads(board: board.board)
+        let sorted: [CatalogThread]
+        switch sortOrder {
+        case .bumpOrder:
+            sorted = threads
+        case .mostReplies:
+            sorted = threads.sorted { $0.replies > $1.replies }
+        case .newest:
+            sorted = threads.sorted { $0.no > $1.no }
+        }
+        guard !searchText.isEmpty else { return sorted }
+        return sorted.filter { thread in
+            thread.sub?.localizedCaseInsensitiveContains(searchText) == true ||
+            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true
         }
     }
 }
@@ -126,6 +141,12 @@ private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String?
     return t
 }
 
+enum CatalogSortOrder: String, CaseIterable {
+    case bumpOrder = "Bump Order"
+    case mostReplies = "Most Replies"
+    case newest = "Newest Threads"
+}
+
 #Preview("Catalog") {
     NavigationStack {
         CatalogView(board: previewBoard)
@@ -147,52 +168,4 @@ private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String?
         board: "g"
     )
     .padding(.vertical, 4)
-}
-
-enum CatalogSortOrder: String, CaseIterable {
-    case bumpOrder = "Bump Order"
-    case mostReplies = "Most Replies"
-    case newest = "Newest Threads"
-}
-
-@Observable
-@MainActor
-class CatalogViewModel {
-    let board: Board
-    var threads: [CatalogThread] = []
-    var searchText: String = ""
-    var sortOrder: CatalogSortOrder = .bumpOrder
-    var isLoading = false
-    var error: Error?
-
-    init(board: Board) {
-        self.board = board
-    }
-
-    var filteredThreads: [CatalogThread] {
-        let sorted: [CatalogThread]
-        switch sortOrder {
-        case .bumpOrder:
-            sorted = threads
-        case .mostReplies:
-            sorted = threads.sorted { $0.replies > $1.replies }
-        case .newest:
-            sorted = threads.sorted { $0.no > $1.no }
-        }
-        guard !searchText.isEmpty else { return sorted }
-        return sorted.filter { thread in
-            thread.sub?.localizedCaseInsensitiveContains(searchText) == true ||
-            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true
-        }
-    }
-
-    func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            threads = try await ChanAPI.shared.catalog(board: board.board)
-        } catch {
-            self.error = error
-        }
-    }
 }
