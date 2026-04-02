@@ -11,7 +11,7 @@ final class WatchedThread {
     var lastReadPostNo: Int = 0
     var newReplyCount: Int
     var lastChecked: Date
-    /// Post numbers the user has made in this thread (for reply highlighting).
+    /// Deprecated: now stored in MyPosts model. Kept to avoid SwiftData migration.
     var myPostNumbers: [Int] = []
 
     init(board: String, threadNo: Int, subject: String, lastSeenPostNo: Int) {

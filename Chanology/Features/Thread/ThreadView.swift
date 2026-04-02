@@ -35,6 +35,7 @@ struct ThreadView: View {
     @State private var visiblePosts: Set<Int> = []
     @State private var lastKnownPostCount: Int = 0
     @Query private var watchedThreads: [WatchedThread]
+    @Query private var allMyPosts: [MyPosts]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
 
@@ -245,9 +246,13 @@ struct ThreadView: View {
                 selectedQuotes: selectedQuotes,
                 onPosted: { newPostNo in
                     selectedQuotes.removeAll()
-                    // Track our post for reply highlighting
-                    if let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
-                        watched.myPostNumbers.append(newPostNo)
+                    // Track our post for (You) indicators
+                    if let record = myPostsRecord {
+                        record.addPost(newPostNo)
+                    } else {
+                        let record = MyPosts(board: board, threadNo: threadNo)
+                        record.addPost(newPostNo)
+                        modelContext.insert(record)
                     }
                     // Refresh thread to show new post
                     Task {
@@ -303,17 +308,22 @@ struct ThreadView: View {
         .padding()
     }
 
+    /// The MyPosts record for the current thread (if any).
+    private var myPostsRecord: MyPosts? {
+        let key = MyPosts.key(board: board, threadNo: threadNo)
+        return allMyPosts.first(where: { $0.threadKey == key })
+    }
+
     /// Whether the given post quotes one of the user's own posts.
     private func isReplyToUser(_ post: Post) -> Bool {
-        guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }),
-              !watched.myPostNumbers.isEmpty else { return false }
+        guard let record = myPostsRecord, !record.postNumbers.isEmpty else { return false }
         let quoted = ReplyMapBuilder.quotedPosts(in: post)
-        return quoted.contains(where: watched.myPostNumbers.contains)
+        return quoted.contains(where: record.postNumbers.contains)
     }
 
     /// The post numbers this user has made in the current thread.
     private var myPostNumbers: [Int] {
-        watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo })?.myPostNumbers ?? []
+        myPostsRecord?.postNumbers ?? []
     }
 
     /// Count of posts per poster ID in this thread.

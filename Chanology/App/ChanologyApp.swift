@@ -9,7 +9,7 @@ struct ChanologyApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([WatchedThread.self])
+        let schema = Schema([WatchedThread.self, MyPosts.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         return try! ModelContainer(for: schema, configurations: [config])
     }()
