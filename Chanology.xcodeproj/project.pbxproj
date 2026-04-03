@@ -26,6 +26,7 @@
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
 		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
 		C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28EB82DFF125BF662041087 /* NotificationService.swift */; };
+		A1B2C3D4E5F60718A9B0C1D2 /* MyPosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */; };
 		D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */; };
 		FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */; };
 		FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0742F64E3880098EC87 /* FlowLayout.swift */; };
@@ -71,6 +72,7 @@
 		C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadView.swift; sourceTree = "<group>"; };
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
+		F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPosts.swift; sourceTree = "<group>"; };
 		F28EB82DFF125BF662041087 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyMapBuilder.swift; sourceTree = "<group>"; };
 		FA91B0742F64E3880098EC87 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
@@ -247,6 +249,7 @@
 			isa = PBXGroup;
 			children = (
 				E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */,
+				F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -384,6 +387,7 @@
 				1CC17F9B1C223637837F3A45 /* WatchListView.swift in Sources */,
 				FA91B07B2F64E3CB0098EC87 /* LoginView.swift in Sources */,
 				D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */,
+				A1B2C3D4E5F60718A9B0C1D2 /* MyPosts.swift in Sources */,
 				FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */,
 				BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */,
 			);
