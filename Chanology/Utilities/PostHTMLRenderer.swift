@@ -58,6 +58,11 @@ enum PostHTMLRenderer {
     }
 
     private static func renderBase(_ html: String) -> AttributedString {
+        // Strip <wbr> tags before parsing. 4chan inserts these as word-break hints
+        // inside bare URLs (e.g. "https://example.com/long<wbr>path"), which splits
+        // the URL into separate text nodes and breaks linkification.
+        let html = html.replacingOccurrences(of: "<wbr>", with: "")
+
         var result = AttributedString()
         var styleStack: [Style] = [Style()]
         var index = html.startIndex

@@ -191,12 +191,38 @@ import Testing
     #expect(foundLink)
 }
 
+@Test func render_bareURL_wbrStripped() {
+    // 4chan inserts <wbr> inside bare URLs for line-breaking
+    let html = "https://truthsocial.com/@realDonald<wbr>Trump"
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://truthsocial.com/@realDonaldTrump")
+
+    // Should be a tappable link
+    var foundLink = false
+    for run in result.runs {
+        if let link = run.link {
+            foundLink = true
+            #expect(link.absoluteString == "https://truthsocial.com/@realDonaldTrump")
+        }
+    }
+    #expect(foundLink)
+}
+
 @Test func render_externalLink_noTruncation_worksNormally() {
     // When 4chan doesn't truncate (short URL), it should still work
     let html = #"<a href="https://x.com/foo">https://x.com/foo</a>"#
     let result = PostHTMLRenderer.render(html)
     let text = String(result.characters)
     #expect(text == "https://x.com/foo")
+}
+
+@Test func render_bareURL_noWbr_worksNormally() {
+    // Short URLs without <wbr> should still work
+    let html = "check this https://x.com/foo"
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "check this https://x.com/foo")
 }
 
 @Test func render_externalLink_followedByText() {
@@ -207,11 +233,27 @@ import Testing
     #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
 }
 
+@Test func render_bareURL_wbr_followedByText() {
+    // URL with <wbr> followed by more content
+    let html = "https://www.youtube.com/user/whiteh<wbr>ouse<br>next line"
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
+}
+
 @Test func render_externalLink_multipleOnSameLine() {
     let html = #"<a href="https://a.com/longpath">https://a.com/long</a>path <a href="https://b.com/test">https://b.com/te</a>st"#
     let result = PostHTMLRenderer.render(html)
     let text = String(result.characters)
     #expect(text == "https://a.com/longpath https://b.com/test")
+}
+
+@Test func render_bareURL_multipleWbr() {
+    // Multiple URLs with <wbr> on separate lines
+    let html = "https://www.youtube.com/watch?v=W9b<wbr>kyOTCrEg<br>https://www.tiktok.com/@realdonaldt<wbr>rump"
+    let result = PostHTMLRenderer.render(html)
+    let text = String(result.characters)
+    #expect(text == "https://www.youtube.com/watch?v=W9bkyOTCrEg\nhttps://www.tiktok.com/@realdonaldtrump")
 }
 
 @Test func render_quotelink_notAffectedByExternalLinkLogic() {
