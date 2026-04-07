@@ -743,10 +743,6 @@ struct NewRepliesMarker: View {
 struct ExpandedImageView: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
 
     private var mediaType: MediaType {
         let ext = url.pathExtension.lowercased()
@@ -778,14 +774,15 @@ struct ExpandedImageView: View {
             case .gif:
                 gifView
             case .image:
-                imageView
+                ZoomableImageView(url: url, onDismiss: { dismiss() })
+                    .ignoresSafeArea()
             }
 
             closeButton
                 .padding()
         }
         .onTapGesture {
-            if mediaType == .image {
+            if mediaType != .image {
                 dismiss()
             }
         }
@@ -794,22 +791,6 @@ struct ExpandedImageView: View {
     private var gifView: some View {
         AnimatedImageView(url: url)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var imageView: some View {
-        AsyncImage(url: url) { image in
-            image
-                .resizable()
-                .scaledToFit()
-                .scaleEffect(scale)
-                .offset(offset)
-                .gesture(magnifyGesture)
-                .gesture(dragGesture)
-                .onTapGesture(count: 2, perform: handleDoubleTap)
-        } placeholder: {
-            ProgressView()
-                .tint(.white)
-        }
     }
 
     private var closeButton: some View {
@@ -822,53 +803,122 @@ struct ExpandedImageView: View {
                 .foregroundStyle(.white, .gray.opacity(0.6))
         }
     }
+}
 
-    private var magnifyGesture: some Gesture {
-        MagnifyGesture()
-            .onChanged { value in
-                scale = lastScale * value.magnification
-            }
-            .onEnded { value in
-                lastScale = max(1.0, lastScale * value.magnification)
-                withAnimation {
-                    scale = lastScale
-                    if scale <= 1.0 {
-                        resetZoom()
-                    }
-                }
-            }
+// MARK: - Zoomable Image View (UIScrollView-based)
+
+struct ZoomableImageView: UIViewRepresentable {
+    let url: URL
+    var onDismiss: (() -> Void)?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onDismiss: onDismiss)
     }
 
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                guard scale > 1 else { return }
-                offset = CGSize(
-                    width: lastOffset.width + value.translation.width,
-                    height: lastOffset.height + value.translation.height
-                )
+    func makeUIView(context: Context) -> UIScrollView {
+        let scrollView = UIScrollView()
+        scrollView.delegate = context.coordinator
+        scrollView.minimumZoomScale = 1.0
+        scrollView.maximumZoomScale = 5.0
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.bouncesZoom = true
+        scrollView.backgroundColor = .clear
+        scrollView.contentInsetAdjustmentBehavior = .never
+
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.backgroundColor = .clear
+        scrollView.addSubview(imageView)
+        context.coordinator.imageView = imageView
+        context.coordinator.scrollView = scrollView
+
+        let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap(_:)))
+        doubleTap.numberOfTapsRequired = 2
+        scrollView.addGestureRecognizer(doubleTap)
+
+        let singleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleSingleTap))
+        singleTap.numberOfTapsRequired = 1
+        singleTap.require(toFail: doubleTap)
+        scrollView.addGestureRecognizer(singleTap)
+
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data, let image = UIImage(data: data) else { return }
+            DispatchQueue.main.async {
+                imageView.image = image
+                context.coordinator.updateLayout()
             }
-            .onEnded { _ in
-                lastOffset = offset
-            }
+        }.resume()
+
+        return scrollView
     }
 
-    private func handleDoubleTap() {
-        withAnimation {
-            if scale > 1 {
-                resetZoom()
+    func updateUIView(_ scrollView: UIScrollView, context: Context) {}
+
+    class Coordinator: NSObject, UIScrollViewDelegate {
+        weak var imageView: UIImageView?
+        weak var scrollView: UIScrollView?
+        var onDismiss: (() -> Void)?
+
+        init(onDismiss: (() -> Void)?) {
+            self.onDismiss = onDismiss
+        }
+
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+            imageView
+        }
+
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            centerImageView()
+        }
+
+        func centerImageView() {
+            guard let imageView, let scrollView else { return }
+            let offsetX = max((scrollView.bounds.width - scrollView.contentSize.width) / 2, 0)
+            let offsetY = max((scrollView.bounds.height - scrollView.contentSize.height) / 2, 0)
+            imageView.frame.origin = CGPoint(x: offsetX, y: offsetY)
+        }
+
+        func updateLayout() {
+            guard let imageView, let scrollView, let image = imageView.image else { return }
+            let boundsSize = scrollView.bounds.size
+            guard boundsSize.width > 0, boundsSize.height > 0 else { return }
+            let imageSize = image.size
+            let fitScale = min(boundsSize.width / imageSize.width, boundsSize.height / imageSize.height)
+            let scaledWidth = imageSize.width * fitScale
+            let scaledHeight = imageSize.height * fitScale
+            imageView.frame = CGRect(
+                x: (boundsSize.width - scaledWidth) / 2,
+                y: (boundsSize.height - scaledHeight) / 2,
+                width: scaledWidth,
+                height: scaledHeight
+            )
+            scrollView.contentSize = CGSize(width: scaledWidth, height: scaledHeight)
+            scrollView.minimumZoomScale = 1.0
+            scrollView.zoomScale = 1.0
+        }
+
+        @objc func handleDoubleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let scrollView else { return }
+            if scrollView.zoomScale > scrollView.minimumZoomScale {
+                scrollView.setZoomScale(scrollView.minimumZoomScale, animated: true)
             } else {
-                scale = 2.0
-                lastScale = 2.0
+                let point = recognizer.location(in: imageView)
+                let size = CGSize(
+                    width: scrollView.bounds.width / 2,
+                    height: scrollView.bounds.height / 2
+                )
+                let origin = CGPoint(x: point.x - size.width / 2, y: point.y - size.height / 2)
+                scrollView.zoom(to: CGRect(origin: origin, size: size), animated: true)
             }
         }
-    }
 
-    private func resetZoom() {
-        scale = 1.0
-        lastScale = 1.0
-        offset = .zero
-        lastOffset = .zero
+        @objc func handleSingleTap() {
+            guard let scrollView else { return }
+            if scrollView.zoomScale <= scrollView.minimumZoomScale {
+                onDismiss?()
+            }
+        }
     }
 }
 
