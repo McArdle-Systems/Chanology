@@ -10,9 +10,11 @@ struct Board: Codable, Identifiable, Hashable, Sendable {
     let maxWebmFilesize: Int
     let maxCommentChars: Int
     let isArchived: Int?
+    let boardFlags: [String: String]?
 
     var id: String { board }
     var isWorkSafe: Bool { wsBoard == 1 }
+    var hasMemeFlags: Bool { !(boardFlags?.isEmpty ?? true) }
 
     enum CodingKeys: String, CodingKey {
         case board, title, pages
@@ -22,6 +24,7 @@ struct Board: Codable, Identifiable, Hashable, Sendable {
         case maxWebmFilesize = "max_webm_filesize"
         case maxCommentChars = "max_comment_chars"
         case isArchived = "is_archived"
+        case boardFlags = "board_flags"
     }
 }
 

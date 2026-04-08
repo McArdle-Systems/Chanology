@@ -1,6 +1,18 @@
 import SwiftUI
 import PhotosUI
 
+private struct MemeFlag: Identifiable, Hashable {
+    let code: String
+    let name: String
+    var id: String { code }
+
+    func flagURL(board: String) -> URL? {
+        URL(string: "https://s.4cdn.org/image/flags/\(board)/\(code.lowercased()).gif")
+    }
+}
+
+
+
 /// Compose sheet for posting a reply to a thread.
 struct ComposeView: View {
     let board: String
@@ -10,6 +22,7 @@ struct ComposeView: View {
     var onPosted: ((Int) async -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @State private var service = ForegroundRefreshService.shared
     @State private var commentText = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var imageData: Data?
@@ -18,6 +31,16 @@ struct ComposeView: View {
     @State private var isPosting = false
     @State private var errorMessage: String?
     @State private var showFilePicker = false
+    @State private var showFlagPicker = false
+    @State private var selectedFlag: MemeFlag?
+
+    private var availableFlags: [MemeFlag] {
+        guard let flags = service.boards.first(where: { $0.board == board })?.boardFlags else {
+            return []
+        }
+        return flags.map { MemeFlag(code: $0.key, name: $0.value) }
+            .sorted { $0.name < $1.name }
+    }
 
     var body: some View {
         NavigationStack {
@@ -44,6 +67,27 @@ struct ComposeView: View {
                     } label: {
                         Label("Files", systemImage: "folder")
                             .font(.callout)
+                    }
+
+                    // Meme flag picker (boards that support it, e.g. /pol/)
+                    if !availableFlags.isEmpty {
+                        Button {
+                            showFlagPicker = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                if let selectedFlag, let url = selectedFlag.flagURL(board: board) {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable().scaledToFit()
+                                    } placeholder: {
+                                        Color.clear
+                                    }
+                                    .frame(height: 12)
+                                }
+                                Text(selectedFlag?.name ?? "Flag")
+                                    .font(.callout)
+                                    .foregroundStyle(selectedFlag != nil ? .primary : .secondary)
+                            }
+                        }
                     }
 
                     Spacer()
@@ -112,6 +156,46 @@ struct ComposeView: View {
                     break
                 }
             }
+            .sheet(isPresented: $showFlagPicker) {
+                NavigationStack {
+                    List {
+                        Button {
+                            selectedFlag = nil
+                            showFlagPicker = false
+                        } label: {
+                            Text("None")
+                                .foregroundStyle(selectedFlag == nil ? .primary : .secondary)
+                        }
+                        ForEach(availableFlags) { flag in
+                            Button {
+                                selectedFlag = flag
+                                showFlagPicker = false
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if let url = flag.flagURL(board: board) {
+                                        AsyncImage(url: url) { image in
+                                            image.resizable().scaledToFit()
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
+                                        .frame(width: 20, height: 14)
+                                    }
+                                    Text(flag.name)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Select Flag")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showFlagPicker = false }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+            }
         }
     }
 
@@ -131,7 +215,8 @@ struct ComposeView: View {
                 threadNo: threadNo,
                 comment: commentText,
                 imageData: imageData,
-                imageFilename: imageFilename
+                imageFilename: imageFilename,
+                flag: selectedFlag?.code
             )
             dismiss()
             await onPosted?(postNo)
@@ -169,3 +254,42 @@ struct ComposeView: View {
         selectedPhotoItem = nil
     }
 }
+// MARK: - Previews
+
+private let previewPolFlags: [String: String] = [
+    "AC": "Anarcho-Capitalist", "AN": "Anarchist", "BL": "Black Nationalist",
+    "CF": "Confederate", "CM": "Communist", "DM": "Democrat", "EU": "European",
+    "FC": "Fascist", "GN": "Gadsden", "GY": "Gay", "JH": "Jihadi",
+    "KN": "Kekistani", "MF": "Muslim", "NB": "National Bolshevik", "NT": "NATO",
+    "NZ": "Nazi", "PC": "Hippie", "PR": "Pirate", "RE": "Republican",
+    "TM": "Templar", "TR": "Tree Hugger", "UN": "United Nations", "WP": "White Supremacist",
+]
+
+#Preview("New Reply") {
+    ComposeView(board: "g", threadNo: 12345678, selectedQuotes: [])
+}
+
+#Preview("With Quotes & Meme Flags") {
+    ComposeView(board: "pol", threadNo: 12345678, selectedQuotes: [12345680, 12345692])
+        .task {
+            let service = ForegroundRefreshService.shared
+            if !service.boards.contains(where: { $0.board == "pol" }) {
+                service.boards.append(
+                    Board(board: "pol", title: "Politically Incorrect", wsBoard: 0, perPage: 15, pages: 10, maxFilesize: 4194304, maxWebmFilesize: 3145728, maxCommentChars: 2000, isArchived: nil, boardFlags: previewPolFlags)
+                )
+            }
+        }
+}
+
+#Preview("With Meme Flags") {
+    ComposeView(board: "pol", threadNo: 12345678, selectedQuotes: [])
+        .task {
+            let service = ForegroundRefreshService.shared
+            if !service.boards.contains(where: { $0.board == "pol" }) {
+                service.boards.append(
+                    Board(board: "pol", title: "Politically Incorrect", wsBoard: 0, perPage: 15, pages: 10, maxFilesize: 4194304, maxWebmFilesize: 3145728, maxCommentChars: 2000, isArchived: nil, boardFlags: previewPolFlags)
+                )
+            }
+        }
+}
+
