@@ -80,7 +80,8 @@ actor ChanPostAPI {
         threadNo: Int,
         comment: String,
         imageData: Data? = nil,
-        imageFilename: String? = nil
+        imageFilename: String? = nil,
+        flag: String? = nil
     ) async throws -> Int {
         // Re-auth if cookie expired
         try await reauthenticateIfNeeded()
@@ -100,6 +101,11 @@ actor ChanPostAPI {
         appendField(&body, boundary: boundary, name: "resto", value: "\(threadNo)")
         appendField(&body, boundary: boundary, name: "com", value: comment)
         appendField(&body, boundary: boundary, name: "mode", value: "regist")
+
+        // Optional meme flag
+        if let flag {
+            appendField(&body, boundary: boundary, name: "flag", value: flag)
+        }
 
         // Optional image attachment
         if let imageData, let filename = imageFilename {

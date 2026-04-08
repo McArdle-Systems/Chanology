@@ -126,7 +126,7 @@ private let previewBoard = Board(
     board: "g", title: "Technology",
     wsBoard: 1, perPage: 15, pages: 10,
     maxFilesize: 4194304, maxWebmFilesize: 3145728,
-    maxCommentChars: 2000, isArchived: nil
+    maxCommentChars: 2000, isArchived: nil, boardFlags: nil
 )
 
 private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42) -> CatalogThread {

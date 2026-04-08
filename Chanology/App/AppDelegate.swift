@@ -2,6 +2,7 @@ import UIKit
 @preconcurrency import BackgroundTasks
 import UserNotifications
 
+@MainActor
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     override init() {
         super.init()
@@ -18,7 +19,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return true
     }
 
-    private func registerBackgroundTasks() {
+    // nonisolated: BGTaskScheduler calls this closure on a background thread,
+    // so the closure must not assert @MainActor isolation.
+    private nonisolated func registerBackgroundTasks() {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: BackgroundRefreshHandler.taskIdentifier,
             using: nil
