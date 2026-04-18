@@ -31,6 +31,7 @@ struct ThreadView: View {
     @State private var showFullTitle = false
     @State private var showCompose = false
     @State private var showLogin = false
+    @State private var isAuthenticating = false
     @State private var showArchivedToast = false
     @State private var visiblePosts: Set<Int> = []
     @State private var lastKnownPostCount: Int = 0
@@ -287,12 +288,25 @@ struct ThreadView: View {
             } else if ChanPostAPI.shared.isAuthenticated {
                 showCompose = true
             } else {
-                showLogin = true
+                Task {
+                    isAuthenticating = true
+                    do {
+                        try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                        showCompose = true
+                    } catch {
+                        showLogin = true
+                    }
+                    isAuthenticating = false
+                }
             }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "square.and.pencil")
-                    .symbolVariant(isThreadClosed ? .slash : .none)
+                if isAuthenticating {
+                    ProgressView()
+                } else {
+                    Image(systemName: "square.and.pencil")
+                        .symbolVariant(isThreadClosed ? .slash : .none)
+                }
                 if !selectedQuotes.isEmpty && !isThreadClosed {
                     Text("\(selectedQuotes.count)")
                         .font(.caption)
