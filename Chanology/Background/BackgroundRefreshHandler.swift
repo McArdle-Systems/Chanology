@@ -52,7 +52,7 @@ enum BackgroundRefreshHandler {
         } else {
             let container: ModelContainer
             do {
-                let schema = Schema([WatchedThread.self])
+                let schema = Schema([WatchedThread.self, MyPosts.self])
                 container = try ModelContainer(for: schema)
             } catch {
                 return
@@ -76,7 +76,11 @@ enum BackgroundRefreshHandler {
                     let board = thread.board
                     let threadNo = thread.threadNo
                     let subject = thread.subject
-                    await NotificationService.shared.notify(board: board, threadNo: threadNo, subject: subject, newPosts: newPosts)
+                    let myPostNumbers: Set<Int>
+                    let myPostsKey = MyPosts.key(board: board, threadNo: threadNo)
+                    let myPostsDescriptor = FetchDescriptor<MyPosts>(predicate: #Predicate { $0.threadKey == myPostsKey })
+                    myPostNumbers = Set((try? context.fetch(myPostsDescriptor))?.first?.postNumbers ?? [])
+                    await NotificationService.shared.notify(board: board, threadNo: threadNo, subject: subject, newPosts: newPosts, myPostNumbers: myPostNumbers)
                     thread.lastSeenPostNo = posts.last!.no
                     thread.newReplyCount += newPosts.count
                     thread.lastChecked = Date()
