@@ -1,4 +1,13 @@
 name: Chanology
+schemes:
+  Chanology:
+    build:
+      targets:
+        Chanology: all
+        ChanologyTests: [test]
+    test:
+      targets:
+        - ChanologyTests
 options:
   bundleIdPrefix: com.chanology
   deploymentTarget:
@@ -27,3 +36,15 @@ targets:
           - fetch
           - remote-notification
         NSUserNotificationsUsageDescription: "Chanology needs notification access to alert you when threads you're watching receive new replies."
+
+  ChanologyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ChanologyTests
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Chanology

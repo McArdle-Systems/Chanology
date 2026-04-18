@@ -440,4 +440,171 @@ enum PostHTMLRenderer {
         var monospace = false
         var link: URL? = nil
     }
+
+    // MARK: - UIKit rendering (for UITextView-based selection)
+
+    static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], tintColor: UIColor = .systemBlue) -> NSAttributedString {
+        let html = html.replacingOccurrences(of: "<wbr>", with: "")
+        let result = NSMutableAttributedString()
+        var styleStack: [UIKitStyle] = [UIKitStyle()]
+        var index = html.startIndex
+        var externalLinkHref: String? = nil
+        var skipInnerText = false
+        var pendingOverflow: String? = nil
+
+        while index < html.endIndex {
+            if html[index] == "<" {
+                guard let tagEnd = html[index...].range(of: ">") else { break }
+                let raw = String(html[html.index(after: index)..<tagEnd.lowerBound])
+                index = tagEnd.upperBound
+                if raw.hasPrefix("!") || raw.hasPrefix("?") { continue }
+
+                let isClose = raw.hasPrefix("/")
+                let body = isClose ? String(raw.dropFirst()) : raw
+                let nameEnd = body.firstIndex(where: { $0 == " " || $0 == "\t" }) ?? body.endIndex
+                let tagName = String(body[..<nameEnd].lowercased())
+
+                if isClose {
+                    switch tagName {
+                    case "a":
+                        if let href = externalLinkHref, let url = URL(string: href) {
+                            var attrs = styleStack.last?.attributes ?? [:]
+                            attrs[.link] = url
+                            attrs[.foregroundColor] = tintColor
+                            result.append(NSAttributedString(string: href, attributes: attrs))
+                            externalLinkHref = nil
+                            skipInnerText = false
+                        }
+                        if styleStack.count > 1 { styleStack.removeLast() }
+                    default:
+                        if styleStack.count > 1 { styleStack.removeLast() }
+                    }
+                } else {
+                    let attrs = parseAttrs(String(body[nameEnd...]))
+                    if tagName == "br" {
+                        result.append(NSAttributedString(string: "\n", attributes: styleStack.last?.attributes ?? [:]))
+                    }
+                    applyOpenTagUIKit(name: tagName, attrs: attrs, stack: &styleStack, tintColor: tintColor)
+                    if tagName == "a", attrs["class"] != "quotelink",
+                       let href = attrs["href"],
+                       let url = URL(string: href),
+                       url.scheme == "http" || url.scheme == "https" {
+                        externalLinkHref = href
+                        skipInnerText = true
+                    }
+                }
+            } else {
+                let textEnd = html[index...].firstIndex(of: "<") ?? html.endIndex
+                let raw = String(html[index..<textEnd])
+                index = textEnd
+                let decoded = decodeEntities(raw)
+
+                if skipInnerText, let href = externalLinkHref {
+                    if href.hasPrefix(decoded) {
+                        pendingOverflow = String(href.dropFirst(decoded.count))
+                        if pendingOverflow?.isEmpty == true { pendingOverflow = nil }
+                    }
+                    continue
+                }
+
+                if let overflow = pendingOverflow {
+                    pendingOverflow = nil
+                    if decoded.hasPrefix(overflow) {
+                        let remaining = String(decoded.dropFirst(overflow.count))
+                        if !remaining.isEmpty {
+                            result.append(NSAttributedString(string: remaining, attributes: styleStack.last?.attributes ?? [:]))
+                        }
+                        continue
+                    }
+                }
+
+                result.append(NSAttributedString(string: decoded, attributes: styleStack.last?.attributes ?? [:]))
+            }
+        }
+
+        if !myPostNumbers.isEmpty {
+            appendYouMarkersNS(to: result, myPostNumbers: Set(myPostNumbers))
+        }
+
+        return result
+    }
+
+    private static func applyOpenTagUIKit(name: String, attrs: [String: String], stack: inout [UIKitStyle], tintColor: UIColor) {
+        switch name {
+        case "br", "wbr": return
+        case "span":
+            var s = stack.last ?? UIKitStyle()
+            switch attrs["class"] {
+            case "quote":    s.color = UIColor(red: 0.45, green: 0.60, blue: 0.27, alpha: 1)
+            case "deadlink": s.color = .secondaryLabel; s.strikethrough = true
+            default: break
+            }
+            stack.append(s)
+        case "a":
+            var s = stack.last ?? UIKitStyle()
+            if attrs["class"] == "quotelink", let href = attrs["href"], let url = resolveQuoteLink(href) {
+                s.link = url; s.color = tintColor
+            }
+            stack.append(s)
+        case "b", "strong": var s = stack.last ?? UIKitStyle(); s.isBold = true;      stack.append(s)
+        case "i", "em":     var s = stack.last ?? UIKitStyle(); s.isItalic = true;    stack.append(s)
+        case "s":           var s = stack.last ?? UIKitStyle(); s.isSpoiler = true;   stack.append(s)
+        case "pre", "code": var s = stack.last ?? UIKitStyle(); s.isMonospace = true; stack.append(s)
+        default: stack.append(stack.last ?? UIKitStyle())
+        }
+    }
+
+    private static func appendYouMarkersNS(to result: NSMutableAttributedString, myPostNumbers: Set<Int>) {
+        var insertions: [(Int, NSAttributedString)] = []
+        result.enumerateAttribute(.link, in: NSRange(location: 0, length: result.length)) { value, range, _ in
+            guard let url = value as? URL,
+                  url.scheme == "chanology", url.host() == "post",
+                  let postNo = Int(url.lastPathComponent),
+                  myPostNumbers.contains(postNo) else { return }
+            let you = NSAttributedString(string: " (You)", attributes: [
+                .foregroundColor: UIColor.systemOrange,
+                .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold)
+            ])
+            insertions.append((range.upperBound, you))
+        }
+        for (location, str) in insertions.reversed() {
+            result.insert(str, at: location)
+        }
+    }
+
+    private struct UIKitStyle {
+        var color: UIColor?
+        var isBold = false
+        var isItalic = false
+        var isMonospace = false
+        var isSpoiler = false
+        var strikethrough = false
+        var link: URL?
+
+        var resolvedFont: UIFont {
+            let size = UIFont.preferredFont(forTextStyle: .body).pointSize
+            if isMonospace { return .monospacedSystemFont(ofSize: size, weight: .regular) }
+            if isBold && isItalic,
+               let desc = UIFont.systemFont(ofSize: size, weight: .bold).fontDescriptor.withSymbolicTraits(.traitItalic) {
+                return UIFont(descriptor: desc, size: size)
+            }
+            if isBold   { return .systemFont(ofSize: size, weight: .bold) }
+            if isItalic { return .italicSystemFont(ofSize: size) }
+            return .preferredFont(forTextStyle: .body)
+        }
+
+        var attributes: [NSAttributedString.Key: Any] {
+            var attrs: [NSAttributedString.Key: Any] = [.font: resolvedFont]
+            if isSpoiler {
+                let c = UIColor(white: 0.15, alpha: 1)
+                attrs[.foregroundColor] = c
+                attrs[.backgroundColor] = c
+                return attrs
+            }
+            if let link  { attrs[.link] = link }
+            if let color { attrs[.foregroundColor] = color }
+            if strikethrough { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+            return attrs
+        }
+    }
 }
