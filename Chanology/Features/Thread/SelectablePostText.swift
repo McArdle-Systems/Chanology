@@ -51,9 +51,11 @@ struct SelectablePostText: UIViewRepresentable {
             self.onLinkTap = onLinkTap
         }
 
-        func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
-            onLinkTap?(URL)
-            return false  // Prevent UITextView's default link handling
+        func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
+            if case .link(let url) = textItem.content {
+                return UIAction { [weak self] _ in self?.onLinkTap?(url) }
+            }
+            return defaultAction
         }
     }
 }

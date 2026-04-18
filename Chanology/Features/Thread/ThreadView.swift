@@ -385,7 +385,9 @@ struct ThreadView: View {
             },
             onQuote: { selected in
                 quotedSnippet = selected
-                showCompose = true
+                DispatchQueue.main.async {
+                    showCompose = true
+                }
             }
         )
         .id(post.no)
