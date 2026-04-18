@@ -4,7 +4,7 @@ import UserNotifications
 actor NotificationService {
     static let shared = NotificationService()
 
-    func notify(board: String, threadNo: Int, subject: String, newPosts: [Post]) async {
+    func notify(board: String, threadNo: Int, subject: String, newPosts: [Post], myPostNumbers: Set<Int> = []) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         print("[Notifications] Authorization status: \(settings.authorizationStatus.rawValue) (2 = authorized)")
@@ -16,7 +16,20 @@ actor NotificationService {
         let content = UNMutableNotificationContent()
         content.title = "/\(board)/ — \(subject)"
 
-        if newPosts.count == 1, let comment = newPosts[0].plainTextComment {
+        let directReplies = myPostNumbers.isEmpty ? [] : newPosts.filter { post in
+            ReplyMapBuilder.quotedPosts(in: post).contains(where: myPostNumbers.contains)
+        }
+        let otherCount = newPosts.count - directReplies.count
+
+        if directReplies.count == 1 && otherCount == 0 {
+            // Single direct reply — show its text with a prefix
+            let text = directReplies[0].plainTextComment?.prefix(200).description ?? "New reply"
+            content.body = "@(You): \(text)"
+        } else if directReplies.count > 1 && otherCount == 0 {
+            content.body = "\(directReplies.count) replies to you"
+        } else if directReplies.count > 0 {
+            content.body = "\(directReplies.count) \(directReplies.count == 1 ? "reply" : "replies") to you + \(otherCount) \(otherCount == 1 ? "other" : "others")"
+        } else if newPosts.count == 1, let comment = newPosts[0].plainTextComment {
             content.body = comment.prefix(200).description
         } else {
             content.body = "\(newPosts.count) new replies"
