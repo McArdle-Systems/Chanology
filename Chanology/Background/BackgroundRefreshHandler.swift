@@ -7,10 +7,12 @@ enum BackgroundRefreshHandler {
 
     /// Called by BGTaskScheduler when the system grants background time.
     /// Budget: ~30 seconds. Keep this lean.
-    static func handleAppRefresh(task: BGAppRefreshTask) {
+    /// Must be nonisolated — BGTaskScheduler invokes this on a background thread.
+    nonisolated static func handleAppRefresh(task: BGAppRefreshTask) {
         print("[BackgroundRefresh] Task fired")
-        // Schedule the next refresh immediately so we don't miss a slot
-        scheduleRefresh()
+        // Schedule the next refresh immediately so we don't miss a slot.
+        // BGTaskScheduler.shared.submit requires @MainActor, so hop there.
+        Task { @MainActor in scheduleRefresh() }
 
         let taskHandle = Task {
             await performRefresh()
@@ -26,6 +28,7 @@ enum BackgroundRefreshHandler {
         }
     }
 
+    @MainActor
     static func scheduleRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: taskIdentifier)
         // Earliest fire date — iOS won't fire before this, but may fire much later.
