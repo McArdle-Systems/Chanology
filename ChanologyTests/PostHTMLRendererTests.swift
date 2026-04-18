@@ -210,6 +210,7 @@ import UIKit
     #expect(foundLink)
 }
 
+
 @Test func render_externalLink_noTruncation_worksNormally() {
     // When 4chan doesn't truncate (short URL), it should still work
     let html = #"<a href="https://x.com/foo">https://x.com/foo</a>"#
@@ -225,6 +226,7 @@ import UIKit
     let text = String(result.characters)
     #expect(text == "check this https://x.com/foo")
 }
+
 
 @Test func render_externalLink_followedByText() {
     // Truncated link with text after the overflow
@@ -242,6 +244,7 @@ import UIKit
     #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
 }
 
+
 @Test func render_externalLink_multipleOnSameLine() {
     let html = #"<a href="https://a.com/longpath">https://a.com/long</a>path <a href="https://b.com/test">https://b.com/te</a>st"#
     let result = PostHTMLRenderer.render(html)
@@ -256,6 +259,7 @@ import UIKit
     let text = String(result.characters)
     #expect(text == "https://www.youtube.com/watch?v=W9bkyOTCrEg\nhttps://www.tiktok.com/@realdonaldtrump")
 }
+
 
 @Test func render_quotelink_notAffectedByExternalLinkLogic() {
     // Quotelinks should still work normally
