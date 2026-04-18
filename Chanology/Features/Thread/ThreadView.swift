@@ -31,6 +31,7 @@ struct ThreadView: View {
     @State private var showFullTitle = false
     @State private var showCompose = false
     @State private var showLogin = false
+    @State private var quotedSnippet: String? = nil
     @State private var isAuthenticating = false
     @State private var showArchivedToast = false
     @State private var visiblePosts: Set<Int> = []
@@ -240,11 +241,12 @@ struct ThreadView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArchivedToast)
-        .sheet(isPresented: $showCompose) {
+        .sheet(isPresented: $showCompose, onDismiss: { quotedSnippet = nil }) {
             ComposeView(
                 board: board,
                 threadNo: threadNo,
                 selectedQuotes: selectedQuotes,
+                quotedSnippet: quotedSnippet,
                 onPosted: { newPostNo in
                     selectedQuotes.removeAll()
                     // Track our post for (You) indicators
@@ -286,12 +288,14 @@ struct ThreadView: View {
                     showArchivedToast = false
                 }
             } else if ChanPostAPI.shared.isAuthenticated {
+                quotedSnippet = nil
                 showCompose = true
             } else {
                 Task {
                     isAuthenticating = true
                     do {
                         try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                        quotedSnippet = nil
                         showCompose = true
                     } catch {
                         showLogin = true
@@ -378,6 +382,10 @@ struct ThreadView: View {
                         highlightedPosterID = posterID
                     }
                 }
+            },
+            onQuote: { selected in
+                quotedSnippet = selected
+                showCompose = true
             }
         )
         .id(post.no)
@@ -541,6 +549,7 @@ struct PostView: View {
     var onImageTap: ((URL) -> Void)?
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
+    var onQuote: ((String) -> Void)?
 
     @Environment(\.openURL) private var openURL
     @State private var showPosterPostCount = false
@@ -683,9 +692,11 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                Text(PostHTMLRenderer.render(html, myPostNumbers: myPostNumbers))
-                    .font(.body)
-                    .textSelection(.enabled)
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers) { selected in
+                    onQuote?(selected)
+                } onLinkTap: { url in
+                    openURL(url)
+                }
             }
 
             Text(post.now)

@@ -18,6 +18,8 @@ struct ComposeView: View {
     let board: String
     let threadNo: Int
     let selectedQuotes: [Int]
+    /// Plain text snippet to pre-fill as a greentext quote (from text selection).
+    var quotedSnippet: String? = nil
     /// Called after a successful post with the new post number.
     var onPosted: ((Int) async -> Void)?
 
@@ -202,8 +204,14 @@ struct ComposeView: View {
     // MARK: - Actions
 
     private func prefillQuotes() {
-        guard !selectedQuotes.isEmpty else { return }
-        commentText = selectedQuotes.map { ">>\($0)" }.joined(separator: "\n") + "\n"
+        var parts: [String] = selectedQuotes.map { ">>\($0)" }
+        if let snippet = quotedSnippet {
+            // Format each line of the snippet as greentext
+            let lines = snippet.split(separator: "\n", omittingEmptySubsequences: false).map { ">\($0)" }
+            parts.append(contentsOf: lines)
+        }
+        guard !parts.isEmpty else { return }
+        commentText = parts.joined(separator: "\n") + "\n"
     }
 
     private func submitPost() async {

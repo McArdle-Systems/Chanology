@@ -1,4 +1,5 @@
 import Testing
+import UIKit
 @testable import Chanology
 
 // MARK: - plainText
@@ -262,4 +263,98 @@ import Testing
     let result = PostHTMLRenderer.render(html)
     let text = String(result.characters)
     #expect(text == ">>12345 some text")
+}
+
+// MARK: - renderNSAttributedString
+
+@Test func renderNS_plainText() {
+    let result = PostHTMLRenderer.renderNSAttributedString("Hello world")
+    #expect(result.string == "Hello world")
+}
+
+@Test func renderNS_brTag_insertsNewline() {
+    let result = PostHTMLRenderer.renderNSAttributedString("a<br>b")
+    #expect(result.string == "a\nb")
+}
+
+@Test func renderNS_greentextColor() {
+    let html = #"<span class="quote">&gt;implying</span>"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == ">implying")
+    let color = result.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+    // Should be the greentext color
+    #expect(color != nil)
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+    color?.getRed(&r, green: &g, blue: &b, alpha: nil)
+    #expect(abs(g - 0.60) < 0.01)
+}
+
+@Test func renderNS_quotelink_producesLinkAttribute() {
+    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == ">>12345")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "chanology://post/12345")
+}
+
+@Test func renderNS_boldTag_boldFont() {
+    let result = PostHTMLRenderer.renderNSAttributedString("<b>bold</b>")
+    #expect(result.string == "bold")
+    let font = result.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+    #expect(font?.fontDescriptor.symbolicTraits.contains(.traitBold) == true)
+}
+
+@Test func renderNS_italicTag_italicFont() {
+    let result = PostHTMLRenderer.renderNSAttributedString("<i>slant</i>")
+    #expect(result.string == "slant")
+    let font = result.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+    #expect(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
+}
+
+@Test func renderNS_spoilerTag_hiddenColors() {
+    let result = PostHTMLRenderer.renderNSAttributedString("<s>secret</s>")
+    #expect(result.string == "secret")
+    let fg = result.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+    let bg = result.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor
+    // Spoiler hides text by matching fg to bg
+    #expect(fg == bg)
+}
+
+@Test func renderNS_deadlink_hasStrikethrough() {
+    let html = #"<span class="deadlink">&gt;&gt;99999</span>"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == ">>99999")
+    let strike = result.attribute(.strikethroughStyle, at: 0, effectiveRange: nil) as? Int
+    #expect(strike == NSUnderlineStyle.single.rawValue)
+}
+
+@Test func renderNS_externalLink_fullHrefDisplayed() {
+    let html = #"<a href="https://example.com/longpath">https://example.com/long</a>path"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://example.com/longpath")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "https://example.com/longpath")
+}
+
+@Test func renderNS_youMarker_appendedAfterQuotelink() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [42])
+    // Should have " (You)" appended after the quotelink
+    #expect(result.string == ">>42 (You)")
+}
+
+@Test func renderNS_youMarker_notAppendedForOtherPosts() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [99])
+    #expect(result.string == ">>42")
+}
+
+@Test func renderNS_entitiesDecoded() {
+    let result = PostHTMLRenderer.renderNSAttributedString("1 &lt; 2 &amp; 3")
+    #expect(result.string == "1 < 2 & 3")
+}
+
+@Test func renderNS_wbrStripped() {
+    let result = PostHTMLRenderer.renderNSAttributedString("super<wbr>long<wbr>word")
+    #expect(result.string == "superlongword")
 }
