@@ -602,7 +602,7 @@ enum PostHTMLRenderer {
                 return attrs
             }
             if let link  { attrs[.link] = link }
-            if let color { attrs[.foregroundColor] = color }
+            attrs[.foregroundColor] = color ?? .label
             if strikethrough { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             return attrs
         }

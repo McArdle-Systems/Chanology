@@ -1239,11 +1239,6 @@ private func mockPost(
 }
 
 #Preview("Post — with webm") {
-    var post = mockPost(
-        no: 11111,
-        com: "Check out this sick webm",
-        resto: 99999
-    )
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": 11111,
         "now": "01/01/25(Wed)12:30:00",
