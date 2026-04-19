@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Clear DerivedData
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+
       - name: Import distribution certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
