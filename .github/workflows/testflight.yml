@@ -65,15 +65,13 @@ jobs:
 
       - name: Build archive
         run: |
-          set -o pipefail
           xcodebuild archive \
             -scheme Chanology \
-            -destination "generic/platform=iOS" \
+            -sdk iphoneos \
             -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
-            CURRENT_PROJECT_VERSION="$(date +%s)" \
-            | xcpretty
+            CURRENT_PROJECT_VERSION="$(date +%s)"
 
       - name: Export IPA
         run: |
@@ -94,12 +92,10 @@ jobs:
           </plist>
           EOF
 
-          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            | xcpretty
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Upload to TestFlight
         run: |
