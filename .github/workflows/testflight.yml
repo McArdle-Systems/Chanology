@@ -97,23 +97,42 @@ jobs:
           mkdir -p /tmp/asc_keys
           echo -n "$API_KEY_BASE64" | base64 --decode > /tmp/asc_keys/key.p8
 
-          HEADER=$(echo -n '{"alg":"ES256","kid":"'"$KEY_ID"'","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
-          NOW=$(date +%s)
-          EXP=$((NOW + 1200))
-          PAYLOAD=$(echo -n '{"iss":"'"$ISSUER_ID"'","iat":'"$NOW"',"exp":'"$EXP"',"aud":"appstoreconnect-v1"}' | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
-          SIG=$(echo -n "$HEADER.$PAYLOAD" | openssl dgst -sha256 -sign /tmp/asc_keys/key.p8 -binary | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
-          JWT="$HEADER.$PAYLOAD.$SIG"
-          echo "ASC_JWT=$JWT" >> "$GITHUB_ENV"
+          python3 << 'PYEOF'
+          import base64, json, os, time, urllib.request
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.hazmat.primitives.asymmetric import ec
 
-          APP_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/apps?filter[bundleId]=io.mcardle.chanology" \
-            -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
-          echo "ASC_APP_ID=$APP_ID" >> "$GITHUB_ENV"
+          key_id   = os.environ["KEY_ID"]
+          issuer   = os.environ["ISSUER_ID"]
 
-          LATEST=$(curl -sf "https://api.appstoreconnect.apple.com/v1/builds?filter[app]=$APP_ID&sort=-uploadedDate&limit=1" \
-            -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['attributes']['version']) if d else print('0')")
-          NEXT=$((LATEST + 1))
-          echo "Next build number: $NEXT"
-          echo "BUILD_NUMBER=$NEXT" >> "$GITHUB_ENV"
+          with open("/tmp/asc_keys/key.p8", "rb") as f:
+              private_key = serialization.load_pem_private_key(f.read(), password=None)
+
+          def b64(data):
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+          now = int(time.time())
+          header  = b64(json.dumps({"alg":"ES256","kid":key_id,"typ":"JWT"}).encode())
+          payload = b64(json.dumps({"iss":issuer,"iat":now,"exp":now+1200,"aud":"appstoreconnect-v1"}).encode())
+          sig = b64(private_key.sign(f"{header}.{payload}".encode(), ec.ECDSA(hashes.SHA256())))
+          jwt = f"{header}.{payload}.{sig}"
+
+          def asc(path):
+              req = urllib.request.Request(f"https://api.appstoreconnect.apple.com{path}",
+                  headers={"Authorization": f"Bearer {jwt}"})
+              return json.loads(urllib.request.urlopen(req).read())
+
+          app_id = asc("/v1/apps?filter[bundleId]=io.mcardle.chanology")["data"][0]["id"]
+          builds = asc(f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=1")["data"]
+          latest = int(builds[0]["attributes"]["version"]) if builds else 0
+          next_build = latest + 1
+
+          print(f"Latest build: {latest}, next: {next_build}")
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"ASC_JWT={jwt}\n")
+              f.write(f"ASC_APP_ID={app_id}\n")
+              f.write(f"BUILD_NUMBER={next_build}\n")
+          PYEOF
 
       - name: Build archive
         run: |
