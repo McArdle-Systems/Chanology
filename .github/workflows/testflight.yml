@@ -140,6 +140,55 @@ jobs:
             --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
             --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
 
+      - name: Add build to Internal test group
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          # Write the API key
+          mkdir -p /tmp/asc_keys
+          echo -n "$API_KEY_BASE64" | base64 --decode > /tmp/asc_keys/key.p8
+
+          # Generate JWT
+          HEADER=$(echo -n '{"alg":"ES256","kid":"'"$KEY_ID"'","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+          NOW=$(date +%s)
+          EXP=$((NOW + 1200))
+          PAYLOAD=$(echo -n '{"iss":"'"$ISSUER_ID"'","iat":'"$NOW"',"exp":'"$EXP"',"aud":"appstoreconnect-v1"}' | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+          SIG=$(echo -n "$HEADER.$PAYLOAD" | openssl dgst -sha256 -sign /tmp/asc_keys/key.p8 -binary | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+          JWT="$HEADER.$PAYLOAD.$SIG"
+
+          # Get app ID for io.mcardle.chanology
+          APP_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/apps?filter[bundleId]=io.mcardle.chanology" \
+            -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
+          echo "App ID: $APP_ID"
+
+          # Wait for build to appear (processing can take a minute)
+          echo "Waiting for build to appear in ASC..."
+          BUILD_ID=""
+          for i in $(seq 1 20); do
+            BUILD_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/builds?filter[app]=$APP_ID&sort=-uploadedDate&limit=1" \
+              -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id']) if d else print('')")
+            if [ -n "$BUILD_ID" ]; then break; fi
+            echo "Attempt $i: build not yet visible, waiting 30s..."
+            sleep 30
+          done
+          echo "Build ID: $BUILD_ID"
+
+          # Get the Internal group ID
+          GROUP_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/apps/$APP_ID/betaGroups?filter[name]=Internal" \
+            -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
+          echo "Group ID: $GROUP_ID"
+
+          # Add build to group
+          curl -sf -X POST "https://api.appstoreconnect.apple.com/v1/betaGroups/$GROUP_ID/relationships/builds" \
+            -H "Authorization: Bearer $JWT" \
+            -H "Content-Type: application/json" \
+            -d '{"data":[{"type":"builds","id":"'"$BUILD_ID"'"}]}'
+
+          echo "Build added to Internal group."
+          rm -rf /tmp/asc_keys
+
       - name: Clean up keychain and secrets
         if: always()
         run: |
