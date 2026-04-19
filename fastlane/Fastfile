@@ -1,3 +1,5 @@
+APP_IDENTIFIER = "io.mcardle.chanology"
+
 default_platform :ios
 
 platform :ios do
@@ -13,7 +15,7 @@ platform :ios do
     increment_build_number(
       build_number: latest_testflight_build_number(
         api_key: api_key,
-        app_identifier: "io.mcardle.chanology"
+        app_identifier: APP_IDENTIFIER
       ) + 1
     )
 
@@ -24,13 +26,14 @@ platform :ios do
       export_options: {
         signingStyle: "manual",
         provisioningProfiles: {
-          "io.mcardle.chanology" => "Github Actions profile"
+          APP_IDENTIFIER => "Github Actions profile"
         }
       }
     )
 
     upload_to_testflight(
       api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
       groups: ["Internal"],
       notify_external_testers: false
     )
