@@ -1,17 +1,14 @@
 name: TestFlight
 
-# Required GitHub Secrets:
-#   BUILD_CERTIFICATE_BASE64       — Apple Distribution certificate as base64-encoded P12
-#                                    (export from Keychain: right-click cert → Export → .p12, then: base64 -i cert.p12 | pbcopy)
-#   P12_PASSWORD                   — password you set when exporting the P12
-#   BUILD_PROVISION_PROFILE_BASE64 — App Store distribution provisioning profile as base64
-#                                    (download from developer.apple.com, then: base64 -i profile.mobileprovision | pbcopy)
-#   KEYCHAIN_PASSWORD              — any string, used for the temporary CI keychain
-#   DEVELOPMENT_TEAM               — your 10-character Apple Team ID (e.g. ABC123DEF4)
-#   APP_STORE_CONNECT_KEY_ID       — App Store Connect API key ID
-#   APP_STORE_CONNECT_ISSUER_ID    — App Store Connect API key issuer UUID
-#   APP_STORE_CONNECT_API_KEY_BASE64 — .p8 API key file contents as base64
-#                                      (base64 -i AuthKey_KEYID.p8 | pbcopy)
+# Required GitHub Secrets (PROD environment):
+#   BUILD_CERTIFICATE_BASE64         — Apple Distribution cert as base64 P12
+#   P12_PASSWORD                     — P12 export password
+#   BUILD_PROVISION_PROFILE_BASE64   — App Store provisioning profile as base64
+#   KEYCHAIN_PASSWORD                — any string, used for the temp CI keychain
+#   DEVELOPMENT_TEAM                 — 10-char Apple Team ID
+#   APP_STORE_CONNECT_KEY_ID         — App Store Connect API key ID
+#   APP_STORE_CONNECT_ISSUER_ID      — App Store Connect API key issuer UUID
+#   APP_STORE_CONNECT_API_KEY_BASE64 — .p8 API key file as base64
 
 on:
   push:
@@ -28,15 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify secrets are set
-        run: |
-          echo "BUILD_CERTIFICATE_BASE64 set: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}"
-          echo "P12_PASSWORD set: ${{ secrets.P12_PASSWORD != '' }}"
-          echo "BUILD_PROVISION_PROFILE_BASE64 set: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}"
-          echo "DEVELOPMENT_TEAM set: ${{ secrets.DEVELOPMENT_TEAM != '' }}"
-          echo "APP_STORE_CONNECT_KEY_ID set: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' }}"
-          echo "APP_STORE_CONNECT_ISSUER_ID set: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' }}"
-          echo "APP_STORE_CONNECT_API_KEY_BASE64 set: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}"
+      - name: Install Fastlane
+        run: gem install fastlane --no-document
 
       - name: Import distribution certificate
         env:
@@ -55,10 +45,6 @@ jobs:
           security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
-          echo "Keychain list:"
-          security list-keychain -d user
-          echo "Identities in CI keychain:"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       - name: Install provisioning profile
         env:
@@ -66,164 +52,21 @@ jobs:
         run: |
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
-          echo "Profile file size: $(wc -c < "$PP_PATH") bytes"
           UUID=$(security cms -D -i "$PP_PATH" | plutil -extract UUID raw -)
-          NAME=$(security cms -D -i "$PP_PATH" | plutil -extract Name raw -)
-          echo "Profile UUID: $UUID"
-          echo "Profile Name: $NAME"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
-          echo "Running as user: $(whoami), home: $HOME"
-          echo "Profile UUID: $UUID"
-          echo "Installed profiles:"
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "PP_UUID=$UUID" >> "$GITHUB_ENV"
 
-      - name: Set up App Store Connect API key
+      - name: Build and upload to TestFlight
         env:
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo -n "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode \
-            > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          OTHER_CODE_SIGN_FLAGS: "--keychain ${{ runner.temp }}/app-signing.keychain-db"
+        run: fastlane beta
 
-      - name: Resolve next build number
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-        run: |
-          mkdir -p /tmp/asc_keys
-          echo -n "$API_KEY_BASE64" | base64 --decode > /tmp/asc_keys/key.p8
-
-          # Generate JWT using openssl for signing, python only for JSON/base64
-          python3 << 'PYEOF'
-          import base64, json, os, subprocess, time, urllib.request
-
-          key_id = os.environ["KEY_ID"]
-          issuer = os.environ["ISSUER_ID"]
-
-          def b64(data):
-              if isinstance(data, str): data = data.encode()
-              return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
-          now = int(time.time())
-          header  = b64(json.dumps({"alg":"ES256","kid":key_id,"typ":"JWT"}))
-          payload = b64(json.dumps({"iss":issuer,"iat":now,"exp":now+1200,"aud":"appstoreconnect-v1"}))
-          msg = f"{header}.{payload}"
-          # openssl outputs DER-encoded signature; ASC needs raw R||S (64 bytes)
-          der = subprocess.check_output(
-              ["openssl", "dgst", "-sha256", "-sign", "/tmp/asc_keys/key.p8", "-binary"],
-              input=msg.encode())
-          # Parse DER: 0x30 len 0x02 rlen r 0x02 slen s
-          r_len = der[3]
-          r = der[4:4+r_len]
-          s_len = der[4+r_len+1]
-          s = der[4+r_len+2:4+r_len+2+s_len]
-          # Strip leading zero padding and left-pad to 32 bytes
-          r = r.lstrip(b'\x00').rjust(32, b'\x00')
-          s = s.lstrip(b'\x00').rjust(32, b'\x00')
-          jwt = f"{msg}.{b64(r+s)}"
-
-          def asc(path):
-              req = urllib.request.Request(f"https://api.appstoreconnect.apple.com{path}",
-                  headers={"Authorization": f"Bearer {jwt}"})
-              return json.loads(urllib.request.urlopen(req).read())
-
-          app_id = asc("/v1/apps?filter[bundleId]=io.mcardle.chanology")["data"][0]["id"]
-          builds = asc(f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=1")["data"]
-          latest = int(builds[0]["attributes"]["version"]) if builds else 0
-          next_build = latest + 1
-
-          print(f"Latest build: {latest}, next: {next_build}")
-          with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write(f"ASC_JWT={jwt}\n")
-              f.write(f"ASC_APP_ID={app_id}\n")
-              f.write(f"BUILD_NUMBER={next_build}\n")
-          PYEOF
-
-      - name: Build archive
-        run: |
-          xcodebuild archive \
-            -scheme Chanology \
-            -sdk iphoneos \
-            -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
-            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
-            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
-            PROVISIONING_PROFILE="$PP_UUID" \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
-
-      - name: Export IPA
-        run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store-connect</string>
-            <key>teamID</key>
-            <string>${{ secrets.DEVELOPMENT_TEAM }}</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>io.mcardle.chanology</key>
-              <string>Github Actions profile</string>
-            </dict>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          EOF
-
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
-
-      - name: Upload to TestFlight
-        run: |
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$RUNNER_TEMP/export/Chanology.ipa" \
-            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
-
-      - name: Add build to Internal test group
-        run: |
-          # Wait for build to finish processing
-          echo "Waiting for build $BUILD_NUMBER to appear in ASC..."
-          BUILD_ID=""
-          for i in $(seq 1 20); do
-            BUILD_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/builds?filter[app]=$ASC_APP_ID&filter[version]=$BUILD_NUMBER&limit=1" \
-              -H "Authorization: Bearer $ASC_JWT" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id']) if d else print('')")
-            if [ -n "$BUILD_ID" ]; then break; fi
-            echo "Attempt $i: not yet visible, waiting 30s..."
-            sleep 30
-          done
-          echo "Build ID: $BUILD_ID"
-
-          GROUP_ID=$(curl -sf "https://api.appstoreconnect.apple.com/v1/apps/$ASC_APP_ID/betaGroups?filter[name]=Internal" \
-            -H "Authorization: Bearer $ASC_JWT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
-          echo "Group ID: $GROUP_ID"
-
-          curl -sf -X POST "https://api.appstoreconnect.apple.com/v1/betaGroups/$GROUP_ID/relationships/builds" \
-            -H "Authorization: Bearer $ASC_JWT" \
-            -H "Content-Type: application/json" \
-            -d '{"data":[{"type":"builds","id":"'"$BUILD_ID"'"}]}'
-
-          echo "Build $BUILD_NUMBER added to Internal group."
-          rm -rf /tmp/asc_keys
-
-      - name: Clean up keychain and secrets
+      - name: Clean up keychain
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/build_certificate.p12" "$RUNNER_TEMP/build_pp.mobileprovision"
-          rm -rf ~/.appstoreconnect/private_keys
