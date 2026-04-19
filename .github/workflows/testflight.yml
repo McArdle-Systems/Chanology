@@ -25,9 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Fastlane
-        run: gem install fastlane --no-document
-
       - name: Import distribution certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
