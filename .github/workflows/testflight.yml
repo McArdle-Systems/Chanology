@@ -57,7 +57,11 @@ jobs:
           curl -sL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$RUNNER_TEMP/wwdr.cer"
           security import "$RUNNER_TEMP/wwdr.cer" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db
+          echo "Keychain list:"
+          security list-keychain -d user
+          echo "Identities in CI keychain:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       - name: Install provisioning profile
         env:
