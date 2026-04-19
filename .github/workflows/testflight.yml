@@ -67,12 +67,13 @@ jobs:
           NAME=$(security cms -D -i "$PP_PATH" | plutil -extract Name raw -)
           echo "Profile UUID: $UUID"
           echo "Profile Name: $NAME"
-          PROFILES_DIR="/Users/jarvis/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILES_DIR"
-          cp "$PP_PATH" "$PROFILES_DIR/$UUID.mobileprovision"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
           echo "Running as user: $(whoami), home: $HOME"
+          echo "Profile UUID: $UUID"
           echo "Installed profiles:"
-          ls "$PROFILES_DIR"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "PP_UUID=$UUID" >> "$GITHUB_ENV"
 
       - name: Set up App Store Connect API key
         env:
@@ -91,7 +92,7 @@ jobs:
             -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
-            PROVISIONING_PROFILE_SPECIFIER="Github Actions profile" \
+            PROVISIONING_PROFILE="$PP_UUID" \
             CURRENT_PROJECT_VERSION="$(date +%s)"
 
       - name: Export IPA
