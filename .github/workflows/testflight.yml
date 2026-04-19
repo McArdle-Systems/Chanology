@@ -67,11 +67,12 @@ jobs:
           NAME=$(security cms -D -i "$PP_PATH" | plutil -extract Name raw -)
           echo "Profile UUID: $UUID"
           echo "Profile Name: $NAME"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
+          PROFILES_DIR="/Users/jarvis/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          cp "$PP_PATH" "$PROFILES_DIR/$UUID.mobileprovision"
           echo "Running as user: $(whoami), home: $HOME"
           echo "Installed profiles:"
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/
+          ls "$PROFILES_DIR"
 
       - name: Set up App Store Connect API key
         env:
