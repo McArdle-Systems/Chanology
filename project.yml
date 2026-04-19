@@ -9,7 +9,7 @@ schemes:
       targets:
         - ChanologyTests
 options:
-  bundleIdPrefix: com.chanology
+  bundleIdPrefix: io.mcardle.chanology
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16"
@@ -21,7 +21,7 @@ targets:
       - path: Chanology
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.chanology.app
+        PRODUCT_BUNDLE_IDENTIFIER: io.mcardle.chanology
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: Chanology/Info.plist
         DEVELOPMENT_TEAM: ""
@@ -31,7 +31,7 @@ targets:
         UILaunchScreen:
           UIColorName: ""
         BGTaskSchedulerPermittedIdentifiers:
-          - com.chanology.background.refresh
+          - io.mcardle.chanology.background.refresh
         UIBackgroundModes:
           - fetch
           - remote-notification
