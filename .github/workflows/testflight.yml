@@ -1,17 +1,14 @@
 name: TestFlight
 
-# Required GitHub Secrets:
-#   BUILD_CERTIFICATE_BASE64       — Apple Distribution certificate as base64-encoded P12
-#                                    (export from Keychain: right-click cert → Export → .p12, then: base64 -i cert.p12 | pbcopy)
-#   P12_PASSWORD                   — password you set when exporting the P12
-#   BUILD_PROVISION_PROFILE_BASE64 — App Store distribution provisioning profile as base64
-#                                    (download from developer.apple.com, then: base64 -i profile.mobileprovision | pbcopy)
-#   KEYCHAIN_PASSWORD              — any string, used for the temporary CI keychain
-#   DEVELOPMENT_TEAM               — your 10-character Apple Team ID (e.g. ABC123DEF4)
-#   APP_STORE_CONNECT_KEY_ID       — App Store Connect API key ID
-#   APP_STORE_CONNECT_ISSUER_ID    — App Store Connect API key issuer UUID
-#   APP_STORE_CONNECT_API_KEY_BASE64 — .p8 API key file contents as base64
-#                                      (base64 -i AuthKey_KEYID.p8 | pbcopy)
+# Required GitHub Secrets (PROD environment):
+#   BUILD_CERTIFICATE_BASE64         — Apple Distribution cert as base64 P12
+#   P12_PASSWORD                     — P12 export password
+#   BUILD_PROVISION_PROFILE_BASE64   — App Store provisioning profile as base64
+#   KEYCHAIN_PASSWORD                — any string, used for the temp CI keychain
+#   DEVELOPMENT_TEAM                 — 10-char Apple Team ID
+#   APP_STORE_CONNECT_KEY_ID         — App Store Connect API key ID
+#   APP_STORE_CONNECT_ISSUER_ID      — App Store Connect API key issuer UUID
+#   APP_STORE_CONNECT_API_KEY_BASE64 — .p8 API key file as base64
 
 on:
   push:
@@ -25,16 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify secrets are set
-        run: |
-          echo "BUILD_CERTIFICATE_BASE64 set: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}"
-          echo "P12_PASSWORD set: ${{ secrets.P12_PASSWORD != '' }}"
-          echo "BUILD_PROVISION_PROFILE_BASE64 set: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}"
-          echo "DEVELOPMENT_TEAM set: ${{ secrets.DEVELOPMENT_TEAM != '' }}"
-          echo "APP_STORE_CONNECT_KEY_ID set: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' }}"
-          echo "APP_STORE_CONNECT_ISSUER_ID set: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' }}"
-          echo "APP_STORE_CONNECT_API_KEY_BASE64 set: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}"
 
       - name: Import distribution certificate
         env:
@@ -51,8 +38,8 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
 
       - name: Install provisioning profile
         env:
@@ -64,61 +51,17 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
 
-      - name: Set up App Store Connect API key
+      - name: Build and upload to TestFlight
         env:
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo -n "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode \
-            > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          OTHER_CODE_SIGN_FLAGS: "--keychain ${{ runner.temp }}/app-signing.keychain-db"
+        run: /opt/homebrew/bin/fastlane beta
 
-      - name: Build archive
-        run: |
-          xcodebuild archive \
-            -scheme Chanology \
-            -sdk iphoneos \
-            -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
-            PROVISIONING_PROFILE_SPECIFIER="Github Actions profile" \
-            CURRENT_PROJECT_VERSION="$(date +%s)"
-
-      - name: Export IPA
-        run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>${{ secrets.DEVELOPMENT_TEAM }}</string>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          EOF
-
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Chanology.xcarchive" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
-
-      - name: Upload to TestFlight
-        run: |
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$RUNNER_TEMP/export/Chanology.ipa" \
-            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
-
-      - name: Clean up keychain and secrets
+      - name: Clean up keychain
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/build_certificate.p12" "$RUNNER_TEMP/build_pp.mobileprovision"
-          rm -rf ~/.appstoreconnect/private_keys
