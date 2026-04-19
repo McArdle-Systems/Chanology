@@ -112,10 +112,19 @@ jobs:
           header  = b64(json.dumps({"alg":"ES256","kid":key_id,"typ":"JWT"}))
           payload = b64(json.dumps({"iss":issuer,"iat":now,"exp":now+1200,"aud":"appstoreconnect-v1"}))
           msg = f"{header}.{payload}"
-          sig_bytes = subprocess.check_output(
+          # openssl outputs DER-encoded signature; ASC needs raw R||S (64 bytes)
+          der = subprocess.check_output(
               ["openssl", "dgst", "-sha256", "-sign", "/tmp/asc_keys/key.p8", "-binary"],
               input=msg.encode())
-          jwt = f"{msg}.{b64(sig_bytes)}"
+          # Parse DER: 0x30 len 0x02 rlen r 0x02 slen s
+          r_len = der[3]
+          r = der[4:4+r_len]
+          s_len = der[4+r_len+1]
+          s = der[4+r_len+2:4+r_len+2+s_len]
+          # Strip leading zero padding and left-pad to 32 bytes
+          r = r.lstrip(b'\x00').rjust(32, b'\x00')
+          s = s.lstrip(b'\x00').rjust(32, b'\x00')
+          jwt = f"{msg}.{b64(r+s)}"
 
           def asc(path):
               req = urllib.request.Request(f"https://api.appstoreconnect.apple.com{path}",
