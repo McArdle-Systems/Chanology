@@ -26,6 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify secrets are set
+        run: |
+          echo "BUILD_CERTIFICATE_BASE64 set: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}"
+          echo "P12_PASSWORD set: ${{ secrets.P12_PASSWORD != '' }}"
+          echo "BUILD_PROVISION_PROFILE_BASE64 set: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}"
+          echo "DEVELOPMENT_TEAM set: ${{ secrets.DEVELOPMENT_TEAM != '' }}"
+          echo "APP_STORE_CONNECT_KEY_ID set: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' }}"
+          echo "APP_STORE_CONNECT_ISSUER_ID set: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' }}"
+          echo "APP_STORE_CONNECT_API_KEY_BASE64 set: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}"
+
       - name: Import distribution certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
