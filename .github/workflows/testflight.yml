@@ -69,6 +69,7 @@ jobs:
           echo "Profile Name: $NAME"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
+          echo "Running as user: $(whoami), home: $HOME"
           echo "Installed profiles:"
           ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
