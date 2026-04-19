@@ -109,9 +109,16 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
             <key>teamID</key>
             <string>${{ secrets.DEVELOPMENT_TEAM }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>io.mcardle.chanology</key>
+              <string>Github Actions profile</string>
+            </dict>
             <key>uploadSymbols</key>
             <true/>
             <key>compileBitcode</key>
