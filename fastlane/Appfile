@@ -1,2 +1,2 @@
 app_identifier "io.mcardle.chanology"
-apple_team_id ENV["DEVELOPMENT_TEAM"]
+team_id ENV["DEVELOPMENT_TEAM"]
