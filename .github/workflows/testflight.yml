@@ -60,9 +60,15 @@ jobs:
         run: |
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          echo "Profile file size: $(wc -c < "$PP_PATH") bytes"
           UUID=$(security cms -D -i "$PP_PATH" | plutil -extract UUID raw -)
+          NAME=$(security cms -D -i "$PP_PATH" | plutil -extract Name raw -)
+          echo "Profile UUID: $UUID"
+          echo "Profile Name: $NAME"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
+          echo "Installed profiles:"
+          ls ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Set up App Store Connect API key
         env:
