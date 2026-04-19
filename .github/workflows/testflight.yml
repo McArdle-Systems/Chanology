@@ -21,6 +21,7 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    environment: PROD
 
     steps:
       - uses: actions/checkout@v4
