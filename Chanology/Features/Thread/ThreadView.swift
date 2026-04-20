@@ -1294,3 +1294,26 @@ private func mockPost(
     return PostView(post: p)
         .padding()
 }
+
+#Preview("Post — bare URLs (real API format)") {
+    VStack(spacing: 0) {
+        // Real API examples from /g/ — bare URLs with <wbr> mid-URL, no anchor tags
+        PostView(post: mockPost(
+            no: 11114,
+            com: "check this out https://youtube.com/watch?v=wOv6z9L<wbr>kHGs lmao",
+            resto: 99999
+        ))
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(
+            no: 11115,
+            com: ##"<a href="#p11114" class="quotelink">&gt;&gt;11114</a><br>try watching https://www.youtube.com/watch?v=oV9<wbr>rvDllKEg"##,
+            resto: 99999
+        ))
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(
+            no: 11116,
+            com: "bare url no wbr: https://news.ycombinator.com/item?id=12345 trust me",
+            resto: 99999
+        ))
+    }
+}
