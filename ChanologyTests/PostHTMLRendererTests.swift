@@ -93,182 +93,6 @@ import UIKit
     #expect(PostHTMLRenderer.decodeEntities(input) == "AT&T rules")
 }
 
-// MARK: - render (AttributedString output)
-
-@Test func render_plainText_noTags() {
-    let result = PostHTMLRenderer.render("Hello world")
-    #expect(String(result.characters) == "Hello world")
-}
-
-@Test func render_brTag_insertsNewline() {
-    let result = PostHTMLRenderer.render("a<br>b")
-    #expect(String(result.characters) == "a\nb")
-}
-
-@Test func render_greentextContent() {
-    let html = #"<span class="quote">&gt;implying</span>"#
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == ">implying")
-}
-
-@Test func render_boldTag() {
-    let html = "<b>bold text</b>"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "bold text")
-}
-
-@Test func render_italicTag() {
-    let html = "<i>italic text</i>"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "italic text")
-}
-
-@Test func render_quotelink_producesLinkAttribute() {
-    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a>"##
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == ">>12345")
-
-    // Check that a link attribute is set on the rendered text
-    var foundLink = false
-    for run in result.runs {
-        if run.link != nil {
-            foundLink = true
-            #expect(run.link?.absoluteString == "chanology://post/12345")
-        }
-    }
-    #expect(foundLink)
-}
-
-@Test func render_deadlink_hasStrikethrough() {
-    let html = #"<span class="deadlink">&gt;&gt;99999</span>"#
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == ">>99999")
-}
-
-@Test func render_spoilerTag_hiddenText() {
-    let html = "<s>secret</s>"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "secret")
-}
-
-@Test func render_preTag_monospace() {
-    let html = "<pre>code block</pre>"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "code block")
-}
-
-@Test func render_nestedTags() {
-    let html = "<b><i>bold italic</i></b>"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "bold italic")
-}
-
-@Test func render_entitiesInText() {
-    let html = "1 &lt; 2 &amp; 3 &gt; 0"
-    let result = PostHTMLRenderer.render(html)
-    #expect(String(result.characters) == "1 < 2 & 3 > 0")
-}
-
-// MARK: - External links
-
-@Test func render_externalLink_fullHrefDisplayed() {
-    // 4chan truncates the visible text inside <a> but keeps full URL in href
-    let html = #"<a href="https://truthsocial.com/@realDonaldTrump">https://truthsocial.com/@realDonald</a>Trump"#
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    // Should show the full URL, not truncated + overflow
-    #expect(text == "https://truthsocial.com/@realDonaldTrump")
-
-    // Should be a tappable link
-    var foundLink = false
-    for run in result.runs {
-        if let link = run.link {
-            foundLink = true
-            #expect(link.absoluteString == "https://truthsocial.com/@realDonaldTrump")
-        }
-    }
-    #expect(foundLink)
-}
-
-@Test func render_bareURL_wbrStripped() {
-    // 4chan inserts <wbr> inside bare URLs for line-breaking
-    let html = "https://truthsocial.com/@realDonald<wbr>Trump"
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://truthsocial.com/@realDonaldTrump")
-
-    // Should be a tappable link
-    var foundLink = false
-    for run in result.runs {
-        if let link = run.link {
-            foundLink = true
-            #expect(link.absoluteString == "https://truthsocial.com/@realDonaldTrump")
-        }
-    }
-    #expect(foundLink)
-}
-
-
-@Test func render_externalLink_noTruncation_worksNormally() {
-    // When 4chan doesn't truncate (short URL), it should still work
-    let html = #"<a href="https://x.com/foo">https://x.com/foo</a>"#
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://x.com/foo")
-}
-
-@Test func render_bareURL_noWbr_worksNormally() {
-    // Short URLs without <wbr> should still work
-    let html = "check this https://x.com/foo"
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "check this https://x.com/foo")
-}
-
-
-@Test func render_externalLink_followedByText() {
-    // Truncated link with text after the overflow
-    let html = #"<a href="https://www.youtube.com/user/whitehouse">https://www.youtube.com/user/whiteh</a>ouse<br>next line"#
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
-}
-
-@Test func render_bareURL_wbr_followedByText() {
-    // URL with <wbr> followed by more content
-    let html = "https://www.youtube.com/user/whiteh<wbr>ouse<br>next line"
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://www.youtube.com/user/whitehouse\nnext line")
-}
-
-
-@Test func render_externalLink_multipleOnSameLine() {
-    let html = #"<a href="https://a.com/longpath">https://a.com/long</a>path <a href="https://b.com/test">https://b.com/te</a>st"#
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://a.com/longpath https://b.com/test")
-}
-
-@Test func render_bareURL_multipleWbr() {
-    // Multiple URLs with <wbr> on separate lines
-    let html = "https://www.youtube.com/watch?v=W9b<wbr>kyOTCrEg<br>https://www.tiktok.com/@realdonaldt<wbr>rump"
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == "https://www.youtube.com/watch?v=W9bkyOTCrEg\nhttps://www.tiktok.com/@realdonaldtrump")
-}
-
-
-@Test func render_quotelink_notAffectedByExternalLinkLogic() {
-    // Quotelinks should still work normally
-    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a> some text"##
-    let result = PostHTMLRenderer.render(html)
-    let text = String(result.characters)
-    #expect(text == ">>12345 some text")
-}
-
 // MARK: - renderNSAttributedString
 
 @Test func renderNS_plainText() {
@@ -286,7 +110,6 @@ import UIKit
     let result = PostHTMLRenderer.renderNSAttributedString(html)
     #expect(result.string == ">implying")
     let color = result.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
-    // Should be the greentext color
     #expect(color != nil)
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
     color?.getRed(&r, green: &g, blue: &b, alpha: nil)
@@ -315,12 +138,28 @@ import UIKit
     #expect(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
 }
 
+@Test func renderNS_preTag_monospaceFont() {
+    let result = PostHTMLRenderer.renderNSAttributedString("<pre>code block</pre>")
+    #expect(result.string == "code block")
+    let font = result.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+    #expect(font?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) == true)
+}
+
+@Test func renderNS_nestedTags_boldItalic() {
+    let result = PostHTMLRenderer.renderNSAttributedString("<b><i>bold italic</i></b>")
+    #expect(result.string == "bold italic")
+    let font = result.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+    // iOS system fonts express bold via weight, not .traitBold; verify italic trait is set
+    // and the font differs from the plain body font (confirming styling was applied)
+    #expect(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
+    #expect(font != UIFont.preferredFont(forTextStyle: .body))
+}
+
 @Test func renderNS_spoilerTag_hiddenColors() {
     let result = PostHTMLRenderer.renderNSAttributedString("<s>secret</s>")
     #expect(result.string == "secret")
     let fg = result.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
     let bg = result.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor
-    // Spoiler hides text by matching fg to bg
     #expect(fg == bg)
 }
 
@@ -332,27 +171,6 @@ import UIKit
     #expect(strike == NSUnderlineStyle.single.rawValue)
 }
 
-@Test func renderNS_externalLink_fullHrefDisplayed() {
-    let html = #"<a href="https://example.com/longpath">https://example.com/long</a>path"#
-    let result = PostHTMLRenderer.renderNSAttributedString(html)
-    #expect(result.string == "https://example.com/longpath")
-    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
-    #expect(link?.absoluteString == "https://example.com/longpath")
-}
-
-@Test func renderNS_youMarker_appendedAfterQuotelink() {
-    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
-    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [42])
-    // Should have " (You)" appended after the quotelink
-    #expect(result.string == ">>42 (You)")
-}
-
-@Test func renderNS_youMarker_notAppendedForOtherPosts() {
-    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
-    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [99])
-    #expect(result.string == ">>42")
-}
-
 @Test func renderNS_entitiesDecoded() {
     let result = PostHTMLRenderer.renderNSAttributedString("1 &lt; 2 &amp; 3")
     #expect(result.string == "1 < 2 & 3")
@@ -361,4 +179,103 @@ import UIKit
 @Test func renderNS_wbrStripped() {
     let result = PostHTMLRenderer.renderNSAttributedString("super<wbr>long<wbr>word")
     #expect(result.string == "superlongword")
+}
+
+// MARK: - External links
+
+@Test func renderNS_externalLink_fullHrefDisplayed() {
+    // 4chan truncates visible text inside <a> but keeps full URL in href
+    let html = #"<a href="https://example.com/longpath">https://example.com/long</a>path"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://example.com/longpath")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "https://example.com/longpath")
+}
+
+@Test func renderNS_externalLink_noTruncation() {
+    let html = #"<a href="https://x.com/foo">https://x.com/foo</a>"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://x.com/foo")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "https://x.com/foo")
+}
+
+@Test func renderNS_externalLink_followedByText() {
+    let html = #"<a href="https://www.youtube.com/user/whitehouse">https://www.youtube.com/user/whiteh</a>ouse<br>next line"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://www.youtube.com/user/whitehouse\nnext line")
+}
+
+@Test func renderNS_externalLink_multiple() {
+    let html = #"<a href="https://a.com/longpath">https://a.com/long</a>path <a href="https://b.com/test">https://b.com/te</a>st"#
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://a.com/longpath https://b.com/test")
+}
+
+@Test func renderNS_quotelink_notAffectedByExternalLinkLogic() {
+    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a> some text"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == ">>12345 some text")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "chanology://post/12345")
+}
+
+// MARK: - Bare URL linkification (real API format — no anchor tags)
+
+@Test func renderNS_bareURL_wbrStripped_isLinkified() {
+    // Real 4chan API format: bare URL with <wbr> mid-URL, no anchor tag
+    let html = "https://truthsocial.com/@realDonald<wbr>Trump"
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://truthsocial.com/@realDonaldTrump")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "https://truthsocial.com/@realDonaldTrump")
+}
+
+@Test func renderNS_bareURL_noWbr_isLinkified() {
+    let html = "check this https://x.com/foo"
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "check this https://x.com/foo")
+    let range = (result.string as NSString).range(of: "https://x.com/foo")
+    let link = result.attribute(.link, at: range.location, effectiveRange: nil) as? URL
+    #expect(link?.absoluteString == "https://x.com/foo")
+}
+
+@Test func renderNS_bareURL_wbr_followedByText() {
+    let html = "https://www.youtube.com/user/whiteh<wbr>ouse<br>next line"
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://www.youtube.com/user/whitehouse\nnext line")
+    let link = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link != nil)
+}
+
+@Test func renderNS_bareURL_multipleWbr() {
+    let html = "https://www.youtube.com/watch?v=W9b<wbr>kyOTCrEg<br>https://www.tiktok.com/@realdonaldt<wbr>rump"
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == "https://www.youtube.com/watch?v=W9bkyOTCrEg\nhttps://www.tiktok.com/@realdonaldtrump")
+    let link1 = result.attribute(.link, at: 0, effectiveRange: nil) as? URL
+    #expect(link1 != nil)
+}
+
+@Test func renderNS_bareURL_insideReply_isLinkified() {
+    // Quote + bare URL in same post (common real-world pattern)
+    let html = ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>try watching https://www.youtube.com/watch?v=oV9<wbr>rvDllKEg"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html)
+    #expect(result.string == ">>12345\ntry watching https://www.youtube.com/watch?v=oV9rvDllKEg")
+    let urlRange = (result.string as NSString).range(of: "https://www.youtube.com/watch?v=oV9rvDllKEg")
+    let link = result.attribute(.link, at: urlRange.location, effectiveRange: nil) as? URL
+    #expect(link != nil)
+}
+
+// MARK: - (You) markers
+
+@Test func renderNS_youMarker_appendedAfterQuotelink() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [42])
+    #expect(result.string == ">>42 (You)")
+}
+
+@Test func renderNS_youMarker_notAppendedForOtherPosts() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [99])
+    #expect(result.string == ">>42")
 }

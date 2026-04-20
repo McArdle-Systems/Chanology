@@ -1,186 +1,9 @@
 import Foundation
-import SwiftUI
+import UIKit
 
-/// Converts 4chan HTML comment markup into an AttributedString suitable for SwiftUI Text.
-///
-/// 4chan HTML patterns handled:
-///   <br>                              → newline
-///   <wbr>                             → ignored (soft hyphen hint)
-///   <span class="quote">…</span>      → greentext (green)
-///   <span class="deadlink">…</span>   → dead quote link (strikethrough, muted)
-///   <a class="quotelink" href="#pN">  → live quote link (accent color)
-///   <b> / <strong>                    → bold
-///   <i> / <em>                        → italic
-///   <s>                               → spoiler (hidden, revealed on copy)
-///   <pre>                             → monospaced
-///   HTML entities                     → decoded
 enum PostHTMLRenderer {
 
     // MARK: - Public
-
-    /// Renders HTML with optional (You) markers on quotelinks that reference your posts.
-    static func render(_ html: String, myPostNumbers: [Int] = []) -> AttributedString {
-        let result = renderBase(html)
-        guard !myPostNumbers.isEmpty else { return result }
-        return appendYouMarkers(to: result, myPostNumbers: Set(myPostNumbers))
-    }
-
-    /// Appends " (You)" in orange after any quotelink whose target is one of myPostNumbers.
-    private static func appendYouMarkers(to input: AttributedString, myPostNumbers: Set<Int>) -> AttributedString {
-        var result = AttributedString()
-        var index = input.startIndex
-
-        while index < input.endIndex {
-            let run = input.runs[index]
-            let range = run.range
-
-            // Check if this run has a link to one of our posts
-            if let link = run.link,
-               link.scheme == "chanology",
-               link.host() == "post",
-               let postNo = Int(link.lastPathComponent),
-               myPostNumbers.contains(postNo) {
-                // Append the original quotelink run
-                result.append(input[range])
-                // Append " (You)" marker
-                var youMarker = AttributedString(" (You)")
-                youMarker.foregroundColor = .orange
-                youMarker.font = .caption2.bold()
-                result.append(youMarker)
-            } else {
-                result.append(input[range])
-            }
-
-            index = run.range.upperBound
-        }
-
-        return result
-    }
-
-    private static func renderBase(_ html: String) -> AttributedString {
-        // Strip <wbr> tags before parsing. 4chan inserts these as word-break hints
-        // inside bare URLs (e.g. "https://example.com/long<wbr>path"), which splits
-        // the URL into separate text nodes and breaks linkification.
-        let html = html.replacingOccurrences(of: "<wbr>", with: "")
-
-        var result = AttributedString()
-        var styleStack: [Style] = [Style()]
-        var index = html.startIndex
-
-        // Tracks external <a> tags so we can emit the full href as display text
-        // and swallow 4chan's truncated overflow after </a>.
-        var externalLinkHref: String? = nil   // set when inside an external <a>
-        var skipInnerText = false              // skip truncated text inside <a>
-        var pendingOverflow: String? = nil     // the href suffix to swallow after </a>
-
-        while index < html.endIndex {
-            if html[index] == "<" {
-                guard let tagEnd = html[index...].range(of: ">") else { break }
-                let raw = String(html[html.index(after: index)..<tagEnd.lowerBound])
-                index = tagEnd.upperBound
-
-                if raw.hasPrefix("!") || raw.hasPrefix("?") { continue }
-
-                let isClose = raw.hasPrefix("/")
-                let body = isClose ? String(raw.dropFirst()) : raw
-
-                // Extract tag name
-                let nameEnd = body.firstIndex(where: { $0 == " " || $0 == "\t" }) ?? body.endIndex
-                let tagName = body[..<nameEnd].lowercased()
-
-                if isClose {
-                    switch tagName {
-                    case "br", "wbr": break
-                    case "a":
-                        // Closing an external link — figure out what overflow to swallow
-                        if let href = externalLinkHref {
-                            // Emit the full URL as a tappable link
-                            if let url = URL(string: href) {
-                                var linkChunk = AttributedString(href)
-                                linkChunk.link = url
-                                linkChunk.foregroundColor = .accentColor
-                                result.append(linkChunk)
-                            }
-                            externalLinkHref = nil
-                            skipInnerText = false
-                        }
-                        if styleStack.count > 1 { styleStack.removeLast() }
-                    default:
-                        if styleStack.count > 1 { styleStack.removeLast() }
-                    }
-                } else {
-                    let attrs = parseAttrs(String(body[nameEnd...]))
-                    // Detect external <a> and capture the href for full-URL rendering
-                    if tagName == "a",
-                       attrs["class"] != "quotelink",
-                       let href = attrs["href"],
-                       let url = URL(string: href),
-                       url.scheme == "http" || url.scheme == "https" {
-                        externalLinkHref = href
-                        skipInnerText = true
-                        // Figure out the overflow: difference between href and
-                        // the inner text that 4chan will put inside the tag.
-                        // We'll compute it when we see the inner text.
-                    }
-                    applyOpenTag(
-                        name: String(tagName),
-                        attrs: attrs,
-                        into: &result,
-                        stack: &styleStack
-                    )
-                }
-            } else {
-                let textEnd = html[index...].firstIndex(of: "<") ?? html.endIndex
-                let raw = String(html[index..<textEnd])
-                index = textEnd
-
-                let decoded = decodeEntities(raw)
-
-                // If we're inside an external <a>, skip the truncated visible text
-                // and compute what overflow will follow after </a>
-                if skipInnerText, let href = externalLinkHref {
-                    // 4chan truncates: inner text is a prefix of the href.
-                    // The overflow after </a> will be href[innerText.count...]
-                    // Store it so we can strip it from the next text node.
-                    if href.hasPrefix(decoded) || href.hasPrefix("https://" + decoded) || href.hasPrefix("http://" + decoded) {
-                        pendingOverflow = String(href.dropFirst(decoded.count))
-                        if pendingOverflow?.isEmpty == true { pendingOverflow = nil }
-                    }
-                    continue
-                }
-
-                // Swallow overflow text from a truncated external link
-                if let overflow = pendingOverflow {
-                    pendingOverflow = nil
-                    if decoded.hasPrefix(overflow) {
-                        // Strip the overflow portion, keep any remaining text
-                        let remaining = String(decoded.dropFirst(overflow.count))
-                        if !remaining.isEmpty {
-                            let currentStyle = styleStack.last ?? Style()
-                            result.append(linkifyURLs(in: remaining, style: currentStyle))
-                        }
-                        continue
-                    }
-                    // Overflow didn't match — fall through and render normally
-                }
-
-                let currentStyle = styleStack.last ?? Style()
-
-                // If the current style already has a link (we're inside a quotelink <a> tag),
-                // don't try to auto-detect URLs — just apply the style as-is.
-                if currentStyle.link != nil {
-                    var chunk = AttributedString(decoded)
-                    applyStyle(currentStyle, to: &chunk)
-                    result.append(chunk)
-                } else {
-                    // Auto-linkify bare URLs in plain text
-                    result.append(linkifyURLs(in: decoded, style: currentStyle))
-                }
-            }
-        }
-
-        return result
-    }
 
     /// Plain text with entities decoded — used for catalog previews and notifications.
     static func plainText(_ html: String) -> String {
@@ -191,132 +14,11 @@ enum PostHTMLRenderer {
         return decodeEntities(noTags).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Private: tag handling
-
-    private static func applyOpenTag(
-        name: String,
-        attrs: [String: String],
-        into result: inout AttributedString,
-        stack: inout [Style]
-    ) {
-        switch name {
-        case "br":
-            result.append(AttributedString("\n"))
-        case "wbr":
-            break
-        case "span":
-            var s = stack.last ?? Style()
-            switch attrs["class"] {
-            case "quote":    s.color = .init(red: 0.45, green: 0.60, blue: 0.27)
-            case "deadlink": s.color = .secondary; s.strikethrough = true
-            default: break
-            }
-            stack.append(s)
-        case "a":
-            var s = stack.last ?? Style()
-            if attrs["class"] == "quotelink", let href = attrs["href"] {
-                s.color = .accentColor
-                s.link = Self.resolveQuoteLink(href)
-            } else if let href = attrs["href"], let url = URL(string: href),
-                      url.scheme == "http" || url.scheme == "https" {
-                // External link (YouTube, Twitter, etc.)
-                s.color = .accentColor
-                s.link = url
-            }
-            stack.append(s)
-        case "b", "strong":
-            var s = stack.last ?? Style(); s.bold = true; stack.append(s)
-        case "i", "em":
-            var s = stack.last ?? Style(); s.italic = true; stack.append(s)
-        case "s":
-            var s = stack.last ?? Style(); s.spoiler = true; stack.append(s)
-        case "pre", "code":
-            var s = stack.last ?? Style(); s.monospace = true; stack.append(s)
-        default:
-            stack.append(stack.last ?? Style())
-        }
-    }
-
-    private static func applyStyle(_ style: Style, to chunk: inout AttributedString) {
-        if style.spoiler {
-            // Spoiler: text same color as background — standard chan convention
-            chunk.foregroundColor = .init(white: 0.15)
-            chunk.backgroundColor = .init(white: 0.15)
-            return
-        }
-        if let link = style.link {
-            chunk.link = link
-            chunk.foregroundColor = .accentColor
-        } else if let color = style.color {
-            chunk.foregroundColor = color
-        }
-        if style.strikethrough { chunk.strikethroughStyle = .single }
-
-        switch (style.bold, style.italic, style.monospace) {
-        case (true,  true,  _):     chunk.font = .body.bold().italic()
-        case (true,  false, _):     chunk.font = .body.bold()
-        case (false, true,  _):     chunk.font = .body.italic()
-        case (false, false, true):  chunk.font = .system(.body, design: .monospaced)
-        default: break
-        }
-    }
-
     // MARK: - Bare URL linkification
 
-    /// Detects bare http(s) URLs in text and makes them tappable links.
     private static let urlDetector: NSDataDetector? = {
         try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
     }()
-
-    private static func linkifyURLs(in text: String, style: Style) -> AttributedString {
-        guard let detector = urlDetector else {
-            var chunk = AttributedString(text)
-            applyStyle(style, to: &chunk)
-            return chunk
-        }
-
-        let nsText = text as NSString
-        let matches = detector.matches(in: text, range: NSRange(location: 0, length: nsText.length))
-
-        guard !matches.isEmpty else {
-            var chunk = AttributedString(text)
-            applyStyle(style, to: &chunk)
-            return chunk
-        }
-
-        var result = AttributedString()
-        var cursor = text.startIndex
-
-        for match in matches {
-            guard let range = Range(match.range, in: text), let url = match.url else { continue }
-
-            // Append text before this URL
-            if cursor < range.lowerBound {
-                var before = AttributedString(text[cursor..<range.lowerBound])
-                applyStyle(style, to: &before)
-                result.append(before)
-            }
-
-            // Append the URL as a tappable link
-            var linkChunk = AttributedString(text[range])
-            var linkStyle = style
-            linkStyle.link = url
-            linkStyle.color = .accentColor
-            applyStyle(linkStyle, to: &linkChunk)
-            result.append(linkChunk)
-
-            cursor = range.upperBound
-        }
-
-        // Append any remaining text after the last URL
-        if cursor < text.endIndex {
-            var after = AttributedString(text[cursor...])
-            applyStyle(style, to: &after)
-            result.append(after)
-        }
-
-        return result
-    }
 
     // MARK: - Link resolution
 
@@ -429,18 +131,6 @@ enum PostHTMLRenderer {
         }
     }
 
-    // MARK: - Style state
-
-    private struct Style {
-        var color: Color? = nil
-        var bold = false
-        var italic = false
-        var spoiler = false
-        var strikethrough = false
-        var monospace = false
-        var link: URL? = nil
-    }
-
     // MARK: - UIKit rendering (for UITextView-based selection)
 
     static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], tintColor: UIColor = .systemBlue) -> NSAttributedString {
@@ -512,13 +202,19 @@ enum PostHTMLRenderer {
                     if decoded.hasPrefix(overflow) {
                         let remaining = String(decoded.dropFirst(overflow.count))
                         if !remaining.isEmpty {
-                            result.append(NSAttributedString(string: remaining, attributes: styleStack.last?.attributes ?? [:]))
+                            let s = styleStack.last ?? UIKitStyle()
+                            result.append(linkifyURLsNS(in: remaining, style: s, tintColor: tintColor))
                         }
                         continue
                     }
                 }
 
-                result.append(NSAttributedString(string: decoded, attributes: styleStack.last?.attributes ?? [:]))
+                let currentStyle = styleStack.last ?? UIKitStyle()
+                if currentStyle.link != nil {
+                    result.append(NSAttributedString(string: decoded, attributes: currentStyle.attributes))
+                } else {
+                    result.append(linkifyURLsNS(in: decoded, style: currentStyle, tintColor: tintColor))
+                }
             }
         }
 
@@ -570,6 +266,41 @@ enum PostHTMLRenderer {
         for (location, str) in insertions.reversed() {
             result.insert(str, at: location)
         }
+    }
+
+    private static func linkifyURLsNS(in text: String, style: UIKitStyle, tintColor: UIColor) -> NSAttributedString {
+        guard let detector = urlDetector else {
+            return NSAttributedString(string: text, attributes: style.attributes)
+        }
+        let nsText = text as NSString
+        let matches = detector.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+        guard !matches.isEmpty else {
+            return NSAttributedString(string: text, attributes: style.attributes)
+        }
+
+        let result = NSMutableAttributedString()
+        var cursor = text.startIndex
+
+        for match in matches {
+            guard let range = Range(match.range, in: text), let url = match.url else { continue }
+
+            if cursor < range.lowerBound {
+                result.append(NSAttributedString(string: String(text[cursor..<range.lowerBound]), attributes: style.attributes))
+            }
+
+            var linkAttrs = style.attributes
+            linkAttrs[.link] = url
+            linkAttrs[.foregroundColor] = tintColor
+            result.append(NSAttributedString(string: String(text[range]), attributes: linkAttrs))
+
+            cursor = range.upperBound
+        }
+
+        if cursor < text.endIndex {
+            result.append(NSAttributedString(string: String(text[cursor...]), attributes: style.attributes))
+        }
+
+        return result
     }
 
     private struct UIKitStyle {
