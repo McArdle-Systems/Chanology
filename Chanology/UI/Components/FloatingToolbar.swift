@@ -75,21 +75,12 @@ struct FloatingToolbar: View {
     }
 
     private var toolbarStack: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 12) {
             ForEach(actions) { action in
-                ToolbarButton(action: action)
+                ToolbarButton(action: action, isToolbarArmed: isArmed)
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 6)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(isArmed ? 0.20 : 0.10),
-                radius: isArmed ? 14 : 8,
-                x: 0, y: isArmed ? 6 : 3)
+        .padding(.vertical, 4)
         .gesture(flipGesture)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Floating toolbar")
@@ -140,14 +131,22 @@ struct FloatingToolbar: View {
 
 private struct ToolbarButton: View {
     let action: ToolbarAction
+    let isToolbarArmed: Bool
 
     var body: some View {
         Button(action: action.action) {
             Image(systemName: action.icon)
                 .font(.system(size: 18, weight: .semibold))
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .foregroundStyle(foreground)
-                .background(background, in: Circle())
+                .background(discBackground)
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(isToolbarArmed ? 0.18 : 0.10),
+                        radius: isToolbarArmed ? 8 : 4,
+                        x: 0, y: isToolbarArmed ? 3 : 1)
                 .contentShape(Circle())
                 .overlay(alignment: .topTrailing) { badgeView }
         }
@@ -155,6 +154,16 @@ private struct ToolbarButton: View {
         .disabled(!action.isEnabled)
         .opacity(action.isEnabled ? 1 : 0.4)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private var discBackground: some View {
+        switch action.role {
+        case .prominent:
+            Circle().fill(Color.accentColor)
+        default:
+            Circle().fill(.ultraThinMaterial)
+        }
     }
 
     @ViewBuilder
@@ -183,13 +192,6 @@ private struct ToolbarButton: View {
         case .standard:    return .primary
         case .prominent:   return .white
         case .destructive: return .red
-        }
-    }
-
-    private var background: Color {
-        switch action.role {
-        case .prominent: return .accentColor
-        default:         return .clear
         }
     }
 }
