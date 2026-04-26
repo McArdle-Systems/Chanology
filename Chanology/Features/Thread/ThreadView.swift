@@ -40,6 +40,12 @@ struct ThreadView: View {
     @Query private var allMyPosts: [MyPosts]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("threadToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
+
+    @State private var searchIsOpen = false
+    @State private var searchText = ""
+    @State private var searchMatches: [Int] = []
+    @State private var currentMatchIndex = 0
 
     /// For mock/preview support only
     @State private var mockPosts: [Post]?
@@ -111,6 +117,7 @@ struct ThreadView: View {
                             }
                             .buttonStyle(.plain)
                             .foregroundStyle(.secondary)
+                            .id("thread-bottom")
                         }
                     }
                     .onAppear { scrollProxy = proxy }
@@ -126,15 +133,6 @@ struct ThreadView: View {
                 }
             } label: {
                 Label("Show Full Title", systemImage: "text.justify.leading")
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    toggleWatch()
-                } label: {
-                    Image(systemName: isWatched ? "bell.fill" : "bell")
-                }
             }
         }
         .overlay(alignment: .top) {
@@ -225,8 +223,8 @@ struct ThreadView: View {
         } message: {
             Text(threadError?.localizedDescription ?? "")
         }
-        .overlay(alignment: .bottomTrailing) {
-            composeButton
+        .overlay {
+            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
         }
         .overlay(alignment: .bottom) {
             if showArchivedToast {
@@ -241,6 +239,23 @@ struct ThreadView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArchivedToast)
+        .overlay(alignment: .bottom) {
+            if searchIsOpen {
+                ThreadSearchBar(
+                    text: $searchText,
+                    matchCount: searchMatches.count,
+                    currentIndex: searchMatches.isEmpty ? 0 : currentMatchIndex + 1,
+                    onPrevious: { navigateMatch(forward: false) },
+                    onNext: { navigateMatch(forward: true) },
+                    onClose: { toggleSearch() }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: searchIsOpen)
+        .onChange(of: searchText) { _, _ in updateSearchMatches() }
         .sheet(isPresented: $showCompose, onDismiss: { quotedSnippet = nil }) {
             ComposeView(
                 board: board,
@@ -278,52 +293,153 @@ struct ThreadView: View {
         return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
     }
 
-    @ViewBuilder
-    private var composeButton: some View {
-        Button {
-            if isThreadClosed {
-                showArchivedToast = true
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    showArchivedToast = false
-                }
-            } else if ChanPostAPI.shared.isAuthenticated {
-                quotedSnippet = nil
-                showCompose = true
-            } else {
-                Task {
-                    isAuthenticating = true
-                    do {
-                        try await ChanPostAPI.shared.reauthenticateIfNeeded()
-                        quotedSnippet = nil
-                        showCompose = true
-                    } catch {
-                        showLogin = true
-                    }
-                    isAuthenticating = false
-                }
+    private func triggerCompose() {
+        if isThreadClosed {
+            showArchivedToast = true
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                showArchivedToast = false
             }
-        } label: {
-            HStack(spacing: 6) {
-                if isAuthenticating {
-                    ProgressView()
-                } else {
-                    Image(systemName: "square.and.pencil")
-                        .symbolVariant(isThreadClosed ? .slash : .none)
+        } else if ChanPostAPI.shared.isAuthenticated {
+            quotedSnippet = nil
+            showCompose = true
+        } else {
+            Task {
+                isAuthenticating = true
+                do {
+                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                    quotedSnippet = nil
+                    showCompose = true
+                } catch {
+                    showLogin = true
                 }
-                if !selectedQuotes.isEmpty && !isThreadClosed {
-                    Text("\(selectedQuotes.count)")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                }
+                isAuthenticating = false
             }
-            .font(.title3)
-            .padding()
-            .foregroundStyle(isThreadClosed ? .secondary : .primary)
-            .background(.ultraThinMaterial, in: Circle())
-            .shadow(radius: 4)
         }
-        .padding()
+    }
+
+    private func scrollToTop() {
+        guard let firstNo = posts.first?.no else { return }
+        scrollToTarget(AnyHashable(firstNo), anchor: .top)
+    }
+
+    private func scrollToBottom() {
+        scrollToTarget(AnyHashable("thread-bottom"), anchor: .bottom)
+    }
+
+    /// Two-pass scroll: an initial animated jump, then a re-scroll once the
+    /// LazyVStack has finished laying out previously-offscreen rows. The
+    /// follow-up corrects the "ends short" symptom caused by lazy
+    /// row-height estimation.
+    private func scrollToTarget(_ id: AnyHashable, anchor: UnitPoint) {
+        guard let proxy = scrollProxy else { return }
+        withAnimation(.easeOut(duration: 0.35)) {
+            proxy.scrollTo(id, anchor: anchor)
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(380))
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    proxy.scrollTo(id, anchor: anchor)
+                }
+            }
+        }
+    }
+
+    private func toggleSearch() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            searchIsOpen.toggle()
+        }
+        if !searchIsOpen {
+            searchText = ""
+            searchMatches = []
+            currentMatchIndex = 0
+            highlightedPostNo = nil
+        }
+    }
+
+    private func updateSearchMatches() {
+        guard !searchText.isEmpty else {
+            searchMatches = []
+            currentMatchIndex = 0
+            highlightedPostNo = nil
+            return
+        }
+        let query = searchText.lowercased()
+        let newMatches = posts.compactMap { post -> Int? in
+            let inComment = post.plainTextComment?.lowercased().contains(query) == true
+            let inSubject = post.decodedSubject?.lowercased().contains(query) == true
+            return (inComment || inSubject) ? post.no : nil
+        }
+        searchMatches = newMatches
+        currentMatchIndex = 0
+        if !newMatches.isEmpty {
+            scrollToMatch()
+        } else {
+            highlightedPostNo = nil
+        }
+    }
+
+    private func navigateMatch(forward: Bool) {
+        guard !searchMatches.isEmpty else { return }
+        if forward {
+            currentMatchIndex = (currentMatchIndex + 1) % searchMatches.count
+        } else {
+            currentMatchIndex = (currentMatchIndex - 1 + searchMatches.count) % searchMatches.count
+        }
+        scrollToMatch()
+    }
+
+    private func scrollToMatch() {
+        guard currentMatchIndex < searchMatches.count else { return }
+        let postNo = searchMatches[currentMatchIndex]
+        highlightedPostNo = nil
+        scrollToTarget(AnyHashable(postNo), anchor: .center)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            withAnimation(.easeIn(duration: 0.2)) {
+                highlightedPostNo = postNo
+            }
+        }
+    }
+
+    private var floatingToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "scroll-top",
+                icon: "arrow.up",
+                label: "Scroll to top",
+                action: { scrollToTop() }
+            ),
+            ToolbarAction(
+                id: "search",
+                icon: "magnifyingglass",
+                label: searchIsOpen ? "Close search" : "Search thread",
+                role: searchIsOpen ? .prominent : .standard,
+                action: { toggleSearch() }
+            ),
+            ToolbarAction(
+                id: "watch",
+                icon: isWatched ? "bell.fill" : "bell",
+                label: isWatched ? "Stop watching" : "Watch thread",
+                action: { toggleWatch() }
+            ),
+            ToolbarAction(
+                id: "reply",
+                icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
+                label: isThreadClosed ? "Thread archived" : "Reply",
+                role: .prominent,
+                isEnabled: !isAuthenticating,
+                badge: (selectedQuotes.isEmpty || isThreadClosed) ? nil : "\(selectedQuotes.count)",
+                action: { triggerCompose() }
+            ),
+            ToolbarAction(
+                id: "scroll-bottom",
+                icon: "arrow.down",
+                label: "Scroll to bottom",
+                action: { scrollToBottom() }
+            ),
+        ]
     }
 
     /// The MyPosts record for the current thread (if any).
@@ -366,6 +482,7 @@ struct ThreadView: View {
             isQuoteSelected: selectedQuotes.contains(post.no),
             myPostNumbers: myPostNumbers,
             posterPostCounts: posterPostCounts,
+            searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
             onImageTap: { url in expandedImageURL = url },
             onPostNumberTap: { postNo in
                 if let idx = selectedQuotes.firstIndex(of: postNo) {
@@ -542,12 +659,88 @@ struct ThreadView: View {
     }
 }
 
+// MARK: - ThreadSearchBar
+
+private struct ThreadSearchBar: View {
+    @Binding var text: String
+    let matchCount: Int
+    let currentIndex: Int
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onClose: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            TextField("Search thread…", text: $text)
+                .focused($isFocused)
+                .font(.system(size: 16))
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onSubmit { isFocused = false }
+
+            if !text.isEmpty {
+                if matchCount > 0 {
+                    Text("\(currentIndex) of \(matchCount)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .fixedSize()
+                } else {
+                    Text("No results")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+
+                Button(action: onPrevious) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .disabled(matchCount == 0)
+
+                Button(action: onNext) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .disabled(matchCount == 0)
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 14, x: 0, y: 4)
+        .onAppear { isFocused = true }
+    }
+}
+
 struct PostView: View {
     let post: Post
     var replyingPosts: [Int] = []
     var isQuoteSelected: Bool = false
     var myPostNumbers: [Int] = []
     var posterPostCounts: [String: Int] = [:]
+    var searchQuery: String? = nil
     var onImageTap: ((URL) -> Void)?
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
@@ -694,7 +887,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)

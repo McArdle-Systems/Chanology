@@ -16,6 +16,7 @@
 		48F4C7A46A8E2E8F9C9E5F23 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4683B16C238C7934CA31402A /* Board.swift */; };
 		52129FBCB14EB81BED84E87A /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E0D7223D94E4BE4DCA9A296 /* Post.swift */; };
 		65CE33106A66F6825ACE6638 /* BoardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E3A37D433C85BFFCA81497 /* BoardsView.swift */; };
+		A1B2C3D4E5F60718A9B0C1D2 /* MyPosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */; };
 		A3C72E389678DDD8FD931145 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21A09608CE48A55B799D557B /* AppDelegate.swift */; };
 		AA00000000000000000006 /* ReplyMapBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000002 /* ReplyMapBuilderTests.swift */; };
 		AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000003 /* PostHTMLRendererTests.swift */; };
@@ -26,8 +27,8 @@
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
 		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
 		C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28EB82DFF125BF662041087 /* NotificationService.swift */; };
-		A1B2C3D4E5F60718A9B0C1D2 /* MyPosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */; };
 		D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */; };
+		FA00000000000000000001 /* SelectablePostText.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000002 /* SelectablePostText.swift */; };
 		FA91B0732F649DB70098EC87 /* ReplyMapBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */; };
 		FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0742F64E3880098EC87 /* FlowLayout.swift */; };
 		FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0762F64E38F0098EC87 /* KeychainHelper.swift */; };
@@ -37,7 +38,6 @@
 		FA91B07F2F6513DC0098EC87 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FA91B07E2F6513DC0098EC87 /* AppIcon.icon */; };
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
-		FA00000000000000000001 /* SelectablePostText.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000002 /* SelectablePostText.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +75,7 @@
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
 		F1E2D3C4B5A60798A9B0C1D2 /* MyPosts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPosts.swift; sourceTree = "<group>"; };
 		F28EB82DFF125BF662041087 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		FA00000000000000000002 /* SelectablePostText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectablePostText.swift; sourceTree = "<group>"; };
 		FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyMapBuilder.swift; sourceTree = "<group>"; };
 		FA91B0742F64E3880098EC87 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		FA91B0762F64E38F0098EC87 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
@@ -84,8 +85,15 @@
 		FA91B07E2F6513DC0098EC87 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = AppIcon.icon; path = Assets/AppIcon.icon; sourceTree = SOURCE_ROOT; };
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
-		FA00000000000000000002 /* SelectablePostText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectablePostText.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		FAA713DC2F9DB8AC0022975E /* UI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UI;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA0000000000000000000C /* Frameworks */ = {
@@ -170,6 +178,7 @@
 				230475872652212EE7EA09BE /* Assets.xcassets */,
 				FA91B07E2F6513DC0098EC87 /* AppIcon.icon */,
 				60D7752E8B22D5AE0C96AC15 /* Info.plist */,
+				FAA713DC2F9DB8AC0022975E /* UI */,
 				467D9133BAFC1AD706DD42AE /* API */,
 				F7D9E65FC4E9DF5D0533058E /* App */,
 				D8FDB5D6795F04844F115DBD /* Background */,
@@ -287,6 +296,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FAA713DC2F9DB8AC0022975E /* UI */,
 			);
 			name = Chanology;
 			packageProductDependencies = (
@@ -413,6 +425,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G75D5FBNYR;
 				INFOPLIST_FILE = Chanology/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -420,7 +433,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				CURRENT_PROJECT_VERSION = 1;
 				PRODUCT_BUNDLE_IDENTIFIER = io.mcardle.chanology;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
@@ -463,6 +475,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -477,7 +490,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				CURRENT_PROJECT_VERSION = 1;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -572,6 +584,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -596,7 +609,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				CURRENT_PROJECT_VERSION = 1;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
