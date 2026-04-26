@@ -14,6 +14,7 @@ struct ToolbarAction: Identifiable {
     let label: String
     var role: Role = .standard
     var isEnabled: Bool = true
+    var badge: String? = nil
     let action: () -> Void
 
     init(
@@ -22,6 +23,7 @@ struct ToolbarAction: Identifiable {
         label: String,
         role: Role = .standard,
         isEnabled: Bool = true,
+        badge: String? = nil,
         action: @escaping () -> Void
     ) {
         self.id = id ?? "\(icon)-\(label)"
@@ -29,6 +31,7 @@ struct ToolbarAction: Identifiable {
         self.label = label
         self.role = role
         self.isEnabled = isEnabled
+        self.badge = badge
         self.action = action
     }
 }
@@ -146,11 +149,33 @@ private struct ToolbarButton: View {
                 .foregroundStyle(foreground)
                 .background(background, in: Circle())
                 .contentShape(Circle())
+                .overlay(alignment: .topTrailing) { badgeView }
         }
         .buttonStyle(.plain)
         .disabled(!action.isEnabled)
         .opacity(action.isEnabled ? 1 : 0.4)
-        .accessibilityLabel(action.label)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private var badgeView: some View {
+        if let badge = action.badge, !badge.isEmpty {
+            Text(badge)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .frame(minWidth: 16, minHeight: 16)
+                .background(Color.accentColor, in: Capsule(style: .continuous))
+                .overlay(Capsule().strokeBorder(Color(.systemBackground), lineWidth: 1.5))
+                .offset(x: 4, y: -4)
+        }
+    }
+
+    private var accessibilityLabel: String {
+        if let badge = action.badge, !badge.isEmpty {
+            return "\(action.label), \(badge)"
+        }
+        return action.label
     }
 
     private var foreground: Color {

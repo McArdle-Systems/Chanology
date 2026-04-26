@@ -129,15 +129,6 @@ struct ThreadView: View {
                 Label("Show Full Title", systemImage: "text.justify.leading")
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    toggleWatch()
-                } label: {
-                    Image(systemName: isWatched ? "bell.fill" : "bell")
-                }
-            }
-        }
         .overlay(alignment: .top) {
             if showFullTitle {
                 Text(subject)
@@ -345,6 +336,7 @@ struct ThreadView: View {
                 label: isThreadClosed ? "Thread archived" : "Reply",
                 role: .prominent,
                 isEnabled: !isAuthenticating,
+                badge: (selectedQuotes.isEmpty || isThreadClosed) ? nil : "\(selectedQuotes.count)",
                 action: { triggerCompose() }
             ),
             ToolbarAction(
