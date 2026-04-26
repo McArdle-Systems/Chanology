@@ -40,6 +40,7 @@ struct ThreadView: View {
     @Query private var allMyPosts: [MyPosts]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("threadToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
 
     /// For mock/preview support only
     @State private var mockPosts: [Post]?
@@ -225,8 +226,8 @@ struct ThreadView: View {
         } message: {
             Text(threadError?.localizedDescription ?? "")
         }
-        .overlay(alignment: .bottomTrailing) {
-            composeButton
+        .overlay {
+            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
         }
         .overlay(alignment: .bottom) {
             if showArchivedToast {
@@ -278,52 +279,81 @@ struct ThreadView: View {
         return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
     }
 
-    @ViewBuilder
-    private var composeButton: some View {
-        Button {
-            if isThreadClosed {
-                showArchivedToast = true
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    showArchivedToast = false
-                }
-            } else if ChanPostAPI.shared.isAuthenticated {
-                quotedSnippet = nil
-                showCompose = true
-            } else {
-                Task {
-                    isAuthenticating = true
-                    do {
-                        try await ChanPostAPI.shared.reauthenticateIfNeeded()
-                        quotedSnippet = nil
-                        showCompose = true
-                    } catch {
-                        showLogin = true
-                    }
-                    isAuthenticating = false
-                }
+    private func triggerCompose() {
+        if isThreadClosed {
+            showArchivedToast = true
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                showArchivedToast = false
             }
-        } label: {
-            HStack(spacing: 6) {
-                if isAuthenticating {
-                    ProgressView()
-                } else {
-                    Image(systemName: "square.and.pencil")
-                        .symbolVariant(isThreadClosed ? .slash : .none)
+        } else if ChanPostAPI.shared.isAuthenticated {
+            quotedSnippet = nil
+            showCompose = true
+        } else {
+            Task {
+                isAuthenticating = true
+                do {
+                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                    quotedSnippet = nil
+                    showCompose = true
+                } catch {
+                    showLogin = true
                 }
-                if !selectedQuotes.isEmpty && !isThreadClosed {
-                    Text("\(selectedQuotes.count)")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                }
+                isAuthenticating = false
             }
-            .font(.title3)
-            .padding()
-            .foregroundStyle(isThreadClosed ? .secondary : .primary)
-            .background(.ultraThinMaterial, in: Circle())
-            .shadow(radius: 4)
         }
-        .padding()
+    }
+
+    private func scrollToTop() {
+        guard let firstNo = posts.first?.no else { return }
+        withAnimation(.easeOut(duration: 0.3)) {
+            scrollProxy?.scrollTo(firstNo, anchor: .top)
+        }
+    }
+
+    private func scrollToBottom() {
+        guard let lastNo = posts.last?.no else { return }
+        withAnimation(.easeOut(duration: 0.3)) {
+            scrollProxy?.scrollTo(lastNo, anchor: .bottom)
+        }
+    }
+
+    private var floatingToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "scroll-top",
+                icon: "arrow.up",
+                label: "Scroll to top",
+                action: { scrollToTop() }
+            ),
+            ToolbarAction(
+                id: "search",
+                icon: "magnifyingglass",
+                label: "Search thread",
+                isEnabled: false,
+                action: {}
+            ),
+            ToolbarAction(
+                id: "watch",
+                icon: isWatched ? "bell.fill" : "bell",
+                label: isWatched ? "Stop watching" : "Watch thread",
+                action: { toggleWatch() }
+            ),
+            ToolbarAction(
+                id: "reply",
+                icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
+                label: isThreadClosed ? "Thread archived" : "Reply",
+                role: .prominent,
+                isEnabled: !isAuthenticating,
+                action: { triggerCompose() }
+            ),
+            ToolbarAction(
+                id: "scroll-bottom",
+                icon: "arrow.down",
+                label: "Scroll to bottom",
+                action: { scrollToBottom() }
+            ),
+        ]
     }
 
     /// The MyPosts record for the current thread (if any).

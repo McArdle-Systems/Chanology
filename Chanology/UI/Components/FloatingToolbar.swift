@@ -35,7 +35,7 @@ struct ToolbarAction: Identifiable {
 
 // MARK: - Side
 
-enum FloatingToolbarSide: Hashable {
+enum FloatingToolbarSide: String, Hashable, CaseIterable {
     case leading, trailing
 
     var flipped: FloatingToolbarSide { self == .leading ? .trailing : .leading }
