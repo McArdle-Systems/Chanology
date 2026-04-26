@@ -81,7 +81,8 @@ struct FloatingToolbar: View {
             }
         }
         .padding(.vertical, 4)
-        .gesture(flipGesture)
+        .contentShape(Rectangle())
+        .simultaneousGesture(flipGesture)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Floating toolbar")
         .accessibilityHint("Long-press and flick horizontally to switch sides")
