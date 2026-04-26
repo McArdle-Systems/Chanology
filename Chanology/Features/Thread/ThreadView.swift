@@ -85,8 +85,6 @@ struct ThreadView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
-                            Color.clear.frame(height: 0).id("thread-top")
-
                             ForEach(posts) { post in
                                 if post.no == newRepliesMarkerPostNo {
                                     NewRepliesMarker()
@@ -114,8 +112,7 @@ struct ThreadView: View {
                             }
                             .buttonStyle(.plain)
                             .foregroundStyle(.secondary)
-
-                            Color.clear.frame(height: 0).id("thread-bottom")
+                            .id("thread-bottom")
                         }
                     }
                     .onAppear { scrollProxy = proxy }
@@ -300,18 +297,19 @@ struct ThreadView: View {
     }
 
     private func scrollToTop() {
-        scrollToSentinel("thread-top", anchor: .top)
+        guard let firstNo = posts.first?.no else { return }
+        scrollToTarget(AnyHashable(firstNo), anchor: .top)
     }
 
     private func scrollToBottom() {
-        scrollToSentinel("thread-bottom", anchor: .bottom)
+        scrollToTarget(AnyHashable("thread-bottom"), anchor: .bottom)
     }
 
     /// Two-pass scroll: an initial animated jump, then a re-scroll once the
-    /// LazyVStack has finished laying out the formerly-offscreen rows. The
-    /// follow-up corrects the "ends 1 post short" symptom caused by lazy
+    /// LazyVStack has finished laying out previously-offscreen rows. The
+    /// follow-up corrects the "ends short" symptom caused by lazy
     /// row-height estimation.
-    private func scrollToSentinel(_ id: String, anchor: UnitPoint) {
+    private func scrollToTarget(_ id: AnyHashable, anchor: UnitPoint) {
         guard let proxy = scrollProxy else { return }
         withAnimation(.easeOut(duration: 0.35)) {
             proxy.scrollTo(id, anchor: anchor)
