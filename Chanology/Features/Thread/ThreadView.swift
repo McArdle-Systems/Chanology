@@ -42,6 +42,11 @@ struct ThreadView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("threadToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
 
+    @State private var searchIsOpen = false
+    @State private var searchText = ""
+    @State private var searchMatches: [Int] = []
+    @State private var currentMatchIndex = 0
+
     /// For mock/preview support only
     @State private var mockPosts: [Post]?
 
@@ -234,6 +239,23 @@ struct ThreadView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showArchivedToast)
+        .overlay(alignment: .bottom) {
+            if searchIsOpen {
+                ThreadSearchBar(
+                    text: $searchText,
+                    matchCount: searchMatches.count,
+                    currentIndex: searchMatches.isEmpty ? 0 : currentMatchIndex + 1,
+                    onPrevious: { navigateMatch(forward: false) },
+                    onNext: { navigateMatch(forward: true) },
+                    onClose: { toggleSearch() }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: searchIsOpen)
+        .onChange(of: searchText) { _, _ in updateSearchMatches() }
         .sheet(isPresented: $showCompose, onDismiss: { quotedSnippet = nil }) {
             ComposeView(
                 board: board,
@@ -324,6 +346,63 @@ struct ThreadView: View {
         }
     }
 
+    private func toggleSearch() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            searchIsOpen.toggle()
+        }
+        if !searchIsOpen {
+            searchText = ""
+            searchMatches = []
+            currentMatchIndex = 0
+            highlightedPostNo = nil
+        }
+    }
+
+    private func updateSearchMatches() {
+        guard !searchText.isEmpty else {
+            searchMatches = []
+            currentMatchIndex = 0
+            highlightedPostNo = nil
+            return
+        }
+        let query = searchText.lowercased()
+        let newMatches = posts.compactMap { post -> Int? in
+            let inComment = post.plainTextComment?.lowercased().contains(query) == true
+            let inSubject = post.decodedSubject?.lowercased().contains(query) == true
+            return (inComment || inSubject) ? post.no : nil
+        }
+        searchMatches = newMatches
+        currentMatchIndex = 0
+        if !newMatches.isEmpty {
+            scrollToMatch()
+        } else {
+            highlightedPostNo = nil
+        }
+    }
+
+    private func navigateMatch(forward: Bool) {
+        guard !searchMatches.isEmpty else { return }
+        if forward {
+            currentMatchIndex = (currentMatchIndex + 1) % searchMatches.count
+        } else {
+            currentMatchIndex = (currentMatchIndex - 1 + searchMatches.count) % searchMatches.count
+        }
+        scrollToMatch()
+    }
+
+    private func scrollToMatch() {
+        guard currentMatchIndex < searchMatches.count else { return }
+        let postNo = searchMatches[currentMatchIndex]
+        highlightedPostNo = nil
+        scrollToTarget(AnyHashable(postNo), anchor: .center)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            withAnimation(.easeIn(duration: 0.25)) {
+                highlightedPostNo = postNo
+            }
+        }
+    }
+
     private var floatingToolbarActions: [ToolbarAction] {
         [
             ToolbarAction(
@@ -335,9 +414,9 @@ struct ThreadView: View {
             ToolbarAction(
                 id: "search",
                 icon: "magnifyingglass",
-                label: "Search thread",
-                isEnabled: false,
-                action: {}
+                label: searchIsOpen ? "Close search" : "Search thread",
+                role: searchIsOpen ? .prominent : .standard,
+                action: { toggleSearch() }
             ),
             ToolbarAction(
                 id: "watch",
@@ -576,6 +655,81 @@ struct ThreadView: View {
             newRepliesMarkerPostNo = update.markerPostNo
             // Note: lastSeenPostNo and newReplyCount are updated by the poller service itself
         }
+    }
+}
+
+// MARK: - ThreadSearchBar
+
+private struct ThreadSearchBar: View {
+    @Binding var text: String
+    let matchCount: Int
+    let currentIndex: Int
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onClose: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            TextField("Search thread…", text: $text)
+                .focused($isFocused)
+                .font(.system(size: 16))
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onSubmit { onNext() }
+
+            if !text.isEmpty {
+                if matchCount > 0 {
+                    Text("\(currentIndex) of \(matchCount)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .fixedSize()
+                } else {
+                    Text("No results")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+
+                Button(action: onPrevious) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .disabled(matchCount == 0)
+
+                Button(action: onNext) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .disabled(matchCount == 0)
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 14, x: 0, y: 4)
+        .onAppear { isFocused = true }
     }
 }
 
