@@ -396,8 +396,8 @@ struct ThreadView: View {
         highlightedPostNo = nil
         scrollToTarget(AnyHashable(postNo), anchor: .center)
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(350))
-            withAnimation(.easeIn(duration: 0.25)) {
+            try? await Task.sleep(for: .milliseconds(150))
+            withAnimation(.easeIn(duration: 0.2)) {
                 highlightedPostNo = postNo
             }
         }
@@ -482,6 +482,7 @@ struct ThreadView: View {
             isQuoteSelected: selectedQuotes.contains(post.no),
             myPostNumbers: myPostNumbers,
             posterPostCounts: posterPostCounts,
+            searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
             onImageTap: { url in expandedImageURL = url },
             onPostNumberTap: { postNo in
                 if let idx = selectedQuotes.firstIndex(of: postNo) {
@@ -682,7 +683,7 @@ private struct ThreadSearchBar: View {
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-                .onSubmit { onNext() }
+                .onSubmit { isFocused = false }
 
             if !text.isEmpty {
                 if matchCount > 0 {
@@ -739,6 +740,7 @@ struct PostView: View {
     var isQuoteSelected: Bool = false
     var myPostNumbers: [Int] = []
     var posterPostCounts: [String: Int] = [:]
+    var searchQuery: String? = nil
     var onImageTap: ((URL) -> Void)?
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
@@ -885,7 +887,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)

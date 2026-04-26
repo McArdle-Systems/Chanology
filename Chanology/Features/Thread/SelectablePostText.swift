@@ -7,6 +7,7 @@ import UIKit
 struct SelectablePostText: UIViewRepresentable {
     let html: String
     let myPostNumbers: [Int]
+    var searchQuery: String? = nil
     var onQuote: ((String) -> Void)?
     var onLinkTap: ((URL) -> Void)?
 
@@ -28,7 +29,23 @@ struct SelectablePostText: UIViewRepresentable {
 
     func updateUIView(_ uiView: QuotableTextView, context: Context) {
         let tint = uiView.tintColor ?? .systemBlue
-        let rendered = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: myPostNumbers, tintColor: tint)
+        let base = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: myPostNumbers, tintColor: tint)
+        let rendered: NSAttributedString
+        if let query = searchQuery, !query.isEmpty {
+            let mutable = NSMutableAttributedString(attributedString: base)
+            let text = mutable.string as NSString
+            var searchRange = NSRange(location: 0, length: text.length)
+            while searchRange.location < text.length {
+                let found = text.range(of: query, options: .caseInsensitive, range: searchRange)
+                if found.location == NSNotFound { break }
+                mutable.addAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.5), range: found)
+                let next = found.location + max(1, found.length)
+                searchRange = NSRange(location: next, length: text.length - next)
+            }
+            rendered = mutable
+        } else {
+            rendered = base
+        }
         if uiView.attributedText != rendered {
             uiView.attributedText = rendered
         }
