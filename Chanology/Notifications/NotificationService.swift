@@ -36,7 +36,11 @@ actor NotificationService {
         }
 
         let soundEnabled = UserDefaults.standard.object(forKey: "notificationSoundEnabled") as? Bool ?? true
-        content.sound = soundEnabled ? .default : nil
+        if soundEnabled {
+            content.sound = directReplies.isEmpty
+                ? .default
+                : UNNotificationSound(named: UNNotificationSoundName("Hey You.caf"))
+        }
         content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
 
         let request = UNNotificationRequest(
