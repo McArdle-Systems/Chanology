@@ -63,6 +63,8 @@ final class ForegroundRefreshService {
         do {
             boards = try await ChanAPI.shared.boards()
             boardsError = nil
+        } catch is CancellationError {
+        } catch let error as URLError where error.code == .cancelled {
         } catch {
             boardsError = error
         }
@@ -76,6 +78,8 @@ final class ForegroundRefreshService {
         do {
             catalogs[board] = try await ChanAPI.shared.catalog(board: board)
             catalogError.removeValue(forKey: board)
+        } catch is CancellationError {
+        } catch let error as URLError where error.code == .cancelled {
         } catch {
             catalogError[board] = error
         }
@@ -98,6 +102,8 @@ final class ForegroundRefreshService {
         do {
             threadPosts[key] = try await ChanAPI.shared.thread(board: board, no: threadNo)
             threadError.removeValue(forKey: key)
+        } catch is CancellationError {
+        } catch let error as URLError where error.code == .cancelled {
         } catch {
             threadError[key] = error
         }
