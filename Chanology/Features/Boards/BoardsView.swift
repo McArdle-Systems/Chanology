@@ -1,9 +1,38 @@
 import SwiftUI
 
+// MARK: - Starred Boards Store
+
+@Observable
+@MainActor
+final class StarredBoardsStore {
+    static let shared = StarredBoardsStore()
+
+    var boardIDs: Set<String>
+
+    private init() {
+        boardIDs = Set(UserDefaults.standard.stringArray(forKey: "starredBoards") ?? [])
+    }
+
+    func toggle(_ boardID: String) {
+        if boardIDs.contains(boardID) { boardIDs.remove(boardID) } else { boardIDs.insert(boardID) }
+        UserDefaults.standard.set(Array(boardIDs), forKey: "starredBoards")
+    }
+
+    func isStarred(_ boardID: String) -> Bool { boardIDs.contains(boardID) }
+}
+
+// MARK: - Boards View
+
 struct BoardsView: View {
     @State private var service = ForegroundRefreshService.shared
+    @State private var starredStore = StarredBoardsStore.shared
     @State private var showingSettings = false
     @AppStorage("showNSFWBoards") private var showNSFWBoards: Bool = false
+
+    private var starredBoards: [Board] {
+        let all = service.workSafeBoards + (showNSFWBoards ? service.nsfwBoards : [])
+        return all.filter { starredStore.isStarred($0.board) }
+    }
 
     var body: some View {
         Group {
@@ -11,17 +40,31 @@ struct BoardsView: View {
                 ProgressView("Loading boards…")
             } else {
                 List {
+                    if !starredBoards.isEmpty {
+                        Section("Starred") {
+                            ForEach(starredBoards) { board in
+                                NavigationLink(value: board) {
+                                    BoardRow(board: board)
+                                }
+                                .swipeActions(edge: .trailing) { starAction(for: board) }
+                            }
+                        }
+                    }
+
                     ForEach(service.workSafeBoards) { board in
                         NavigationLink(value: board) {
                             BoardRow(board: board)
                         }
+                        .swipeActions(edge: .trailing) { starAction(for: board) }
                     }
+
                     if showNSFWBoards {
                         Section("NSFW") {
                             ForEach(service.nsfwBoards) { board in
                                 NavigationLink(value: board) {
                                     BoardRow(board: board)
                                 }
+                                .swipeActions(edge: .trailing) { starAction(for: board) }
                             }
                         }
                     } else {
@@ -57,7 +100,18 @@ struct BoardsView: View {
             Text(service.boardsError?.localizedDescription ?? "")
         }
     }
+
+    @ViewBuilder
+    private func starAction(for board: Board) -> some View {
+        let starred = starredStore.isStarred(board.board)
+        Button { starredStore.toggle(board.board) } label: {
+            Label(starred ? "Unstar" : "Star", systemImage: starred ? "star.slash" : "star")
+        }
+        .tint(.yellow)
+    }
 }
+
+// MARK: - Board Row
 
 struct BoardRow: View {
     let board: Board
@@ -120,6 +174,17 @@ private let previewBoards: [Board] = [
     let defaults = UserDefaults(suiteName: "preview.nsfw.shown")!
     defaults.set(true, forKey: "showNSFWBoards")
     ForegroundRefreshService.shared.boards = previewBoards
+    return NavigationStack {
+        BoardsView()
+    }
+    .defaultAppStorage(defaults)
+}
+
+#Preview("Boards — starred") {
+    let defaults = UserDefaults(suiteName: "preview.starred")!
+    defaults.set(false, forKey: "showNSFWBoards")
+    ForegroundRefreshService.shared.boards = previewBoards
+    StarredBoardsStore.shared.boardIDs = ["g"]
     return NavigationStack {
         BoardsView()
     }
