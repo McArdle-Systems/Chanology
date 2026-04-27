@@ -50,7 +50,7 @@ struct CatalogView: View {
             }
         }
         .task { await service.fetchCatalog(board: board.board) }
-        .refreshable { await Task { await service.fetchCatalog(board: board.board) }.value }
+        .refreshable { await service.fetchCatalog(board: board.board) }
         .alert("Error", isPresented: .constant(service.catalogError[board.board] != nil)) {
             Button("OK") { service.catalogError.removeValue(forKey: board.board) }
         } message: {

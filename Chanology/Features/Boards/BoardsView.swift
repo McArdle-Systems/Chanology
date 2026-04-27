@@ -93,7 +93,7 @@ struct BoardsView: View {
             SettingsView()
         }
         .task { await service.fetchBoards() }
-        .refreshable { await Task { await service.fetchBoards() }.value }
+        .refreshable { await service.fetchBoards() }
         .alert("Error", isPresented: .constant(service.boardsError != nil)) {
             Button("OK") { service.boardsError = nil }
         } message: {
