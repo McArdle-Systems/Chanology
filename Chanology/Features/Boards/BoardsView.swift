@@ -24,6 +24,12 @@ struct BoardsView: View {
                                 }
                             }
                         }
+                    } else {
+                        Section {
+                        } footer: {
+                            Text("NSFW boards are hidden. Tap ⚙ to enable them.")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
                     }
                 }
                 .listStyle(.insetGrouped)
