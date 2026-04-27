@@ -77,8 +77,12 @@ final class ForegroundRefreshService {
         catalogLoading[board] = true
         defer { catalogLoading[board] = false }
         do {
-            catalogs[board] = try await ChanAPI.shared.catalog(board: board)
-            catalogError.removeValue(forKey: board)
+            try await withTaskCancellationHandler {
+                catalogs[board] = try await ChanAPI.shared.catalog(board: board)
+                catalogError.removeValue(forKey: board)
+            } onCancel: {
+                print("[FRS] fetchCatalog(\(board)) ⚠️ SWIFT TASK CANCELLED caller=\(caller)")
+            }
         } catch {
             print("[FRS] fetchCatalog(\(board)) ERROR caller=\(caller) — \(type(of: error)): \(error)")
             catalogError[board] = error
