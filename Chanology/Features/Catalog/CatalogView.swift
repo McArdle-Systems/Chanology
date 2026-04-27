@@ -85,31 +85,19 @@ struct CatalogThreadRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Thumbnail
-            Group {
-                if let url = thread.thumbnailURL(board: board) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color.secondary.opacity(0.2)
-                    }
+            if let url = thread.thumbnailURL(board: board) {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color.secondary.opacity(0.2)
+                }
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.secondary.opacity(0.15))
                     .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.secondary.opacity(0.15))
-                        .frame(width: 80, height: 80)
-                        .overlay(Image(systemName: "text.bubble").foregroundStyle(.secondary))
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                if isWatched {
-                    Image(systemName: "bell.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(Color.red, in: Circle())
-                        .offset(x: 6, y: -6)
-                }
+                    .overlay(Image(systemName: "text.bubble").foregroundStyle(.secondary))
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -135,6 +123,16 @@ struct CatalogThreadRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .overlay(alignment: .topTrailing) {
+            if isWatched {
+                Image(systemName: "bell.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(Color.red, in: Circle())
+                    .padding(8)
+            }
+        }
         .contentShape(Rectangle())
     }
 }
