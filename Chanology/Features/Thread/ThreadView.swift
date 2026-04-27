@@ -426,8 +426,9 @@ struct ThreadView: View {
                 id: "reply",
                 icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
                 label: isThreadClosed ? "Thread archived" : "Reply",
-                role: .prominent,
+                role: isThreadClosed ? .standard : .prominent,
                 isEnabled: !isAuthenticating,
+                showSlash: isThreadClosed,
                 badge: (selectedQuotes.isEmpty || isThreadClosed) ? nil : "\(selectedQuotes.count)",
                 action: { triggerCompose() }
             ),
