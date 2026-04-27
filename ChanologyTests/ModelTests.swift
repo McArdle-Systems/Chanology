@@ -320,19 +320,19 @@ private let catalogThreadJSON = """
 
 // MARK: - Notification sound preference
 
-@Test func notificationSound_defaultsToEnabled() {
-    let defaults = UserDefaults(suiteName: "test.notificationSound.default")!
-    defaults.removeObject(forKey: "notificationSoundEnabled")
-    let enabled = defaults.object(forKey: "notificationSoundEnabled") as? Bool ?? true
+@Test func customSounds_defaultsToTrue() {
+    let defaults = UserDefaults(suiteName: "test.customSounds.default")!
+    defaults.removeObject(forKey: "customNotificationSounds")
+    let enabled = defaults.object(forKey: "customNotificationSounds") as? Bool ?? true
     #expect(enabled == true)
 }
 
-@Test func notificationSound_respectsDisabledPreference() {
-    let defaults = UserDefaults(suiteName: "test.notificationSound.disabled")!
-    defaults.set(false, forKey: "notificationSoundEnabled")
-    let enabled = defaults.object(forKey: "notificationSoundEnabled") as? Bool ?? true
+@Test func customSounds_canBeDisabled() {
+    let defaults = UserDefaults(suiteName: "test.customSounds.disabled")!
+    defaults.set(false, forKey: "customNotificationSounds")
+    let enabled = defaults.object(forKey: "customNotificationSounds") as? Bool ?? true
     #expect(enabled == false)
-    defaults.removeObject(forKey: "notificationSoundEnabled")
+    defaults.removeObject(forKey: "customNotificationSounds")
 }
 
 // MARK: - Board filtering

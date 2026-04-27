@@ -35,12 +35,10 @@ actor NotificationService {
             content.body = "\(newPosts.count) new replies"
         }
 
-        let soundEnabled = UserDefaults.standard.object(forKey: "notificationSoundEnabled") as? Bool ?? true
-        if soundEnabled {
-            content.sound = directReplies.isEmpty
-                ? .default
-                : UNNotificationSound(named: UNNotificationSoundName("Hey You.caf"))
-        }
+        let customSounds = UserDefaults.standard.object(forKey: "customNotificationSounds") as? Bool ?? true
+        content.sound = (customSounds && !directReplies.isEmpty)
+            ? UNNotificationSound(named: UNNotificationSoundName("Hey You.caf"))
+            : .default
         content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
 
         let request = UNNotificationRequest(
