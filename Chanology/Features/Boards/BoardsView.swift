@@ -2,6 +2,8 @@ import SwiftUI
 
 struct BoardsView: View {
     @State private var service = ForegroundRefreshService.shared
+    @State private var showingSettings = false
+    @AppStorage("showNSFWBoards") private var showNSFWBoards: Bool = false
 
     var body: some View {
         Group {
@@ -14,10 +16,12 @@ struct BoardsView: View {
                             BoardRow(board: board)
                         }
                     }
-                    Section("NSFW") {
-                        ForEach(service.nsfwBoards) { board in
-                            NavigationLink(value: board) {
-                                BoardRow(board: board)
+                    if showNSFWBoards {
+                        Section("NSFW") {
+                            ForEach(service.nsfwBoards) { board in
+                                NavigationLink(value: board) {
+                                    BoardRow(board: board)
+                                }
                             }
                         }
                     }
@@ -28,6 +32,16 @@ struct BoardsView: View {
         .navigationTitle("Boards")
         .navigationDestination(for: Board.self) { board in
             CatalogView(board: board)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingSettings = true } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
         .task { await service.fetchBoards() }
         .refreshable { await service.fetchBoards() }
@@ -51,6 +65,30 @@ struct BoardRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Settings
+
+struct SettingsView: View {
+    @AppStorage("showNSFWBoards") private var showNSFWBoards: Bool = false
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Content") {
+                    Toggle("Show NSFW Boards", isOn: $showNSFWBoards)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 
