@@ -288,6 +288,24 @@ private let catalogThreadJSON = """
     #expect(thread.plainTextComment == "Welcome\nPost here")
 }
 
+// MARK: - Board filtering
+
+@Test @MainActor func service_workSafeBoards_excludesNSFW() {
+    let service = ForegroundRefreshService()
+    service.boards = [
+        Board(board: "g", title: "Technology", wsBoard: 1, perPage: 15, pages: 10, maxFilesize: 0, maxWebmFilesize: 0, maxCommentChars: 0, isArchived: nil, boardFlags: nil),
+        Board(board: "b", title: "Random",     wsBoard: 0, perPage: 15, pages: 10, maxFilesize: 0, maxWebmFilesize: 0, maxCommentChars: 0, isArchived: nil, boardFlags: nil),
+    ]
+    #expect(service.workSafeBoards.map(\.board) == ["g"])
+    #expect(service.nsfwBoards.map(\.board) == ["b"])
+}
+
+@Test @MainActor func service_boards_emptyBeforeFetch() {
+    let service = ForegroundRefreshService()
+    #expect(service.workSafeBoards.isEmpty)
+    #expect(service.nsfwBoards.isEmpty)
+}
+
 // MARK: - ThreadResponse decoding
 
 @Test func threadResponse_decodesPosts() throws {

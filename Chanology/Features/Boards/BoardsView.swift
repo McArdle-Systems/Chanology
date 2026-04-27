@@ -106,10 +106,24 @@ private let previewBoards: [Board] = [
     Board(board: "b", title: "Random", wsBoard: 0, perPage: 15, pages: 10, maxFilesize: 4194304, maxWebmFilesize: 3145728, maxCommentChars: 2000, isArchived: nil, boardFlags: nil),
 ]
 
-#Preview("Boards") {
-    NavigationStack {
+#Preview("Boards — NSFW hidden") {
+    let defaults = UserDefaults(suiteName: "preview.nsfw.hidden")!
+    defaults.set(false, forKey: "showNSFWBoards")
+    ForegroundRefreshService.shared.boards = previewBoards
+    return NavigationStack {
         BoardsView()
     }
+    .defaultAppStorage(defaults)
+}
+
+#Preview("Boards — NSFW shown") {
+    let defaults = UserDefaults(suiteName: "preview.nsfw.shown")!
+    defaults.set(true, forKey: "showNSFWBoards")
+    ForegroundRefreshService.shared.boards = previewBoards
+    return NavigationStack {
+        BoardsView()
+    }
+    .defaultAppStorage(defaults)
 }
 
 #Preview("BoardRow") {
