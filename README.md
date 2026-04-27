@@ -3,7 +3,6 @@
 A native iOS client for 4chan, built with SwiftUI.
 
 ![Tests](https://github.com/McArdle-Systems/Chanology/actions/workflows/test.yml/badge.svg)
-![TestFlight](https://github.com/McArdle-Systems/Chanology/actions/workflows/testflight.yml/badge.svg)
 ![iOS 17+](https://img.shields.io/badge/iOS-17%2B-blue?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6.0-orange?logo=swift)
 
