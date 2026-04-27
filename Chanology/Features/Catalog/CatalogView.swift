@@ -186,3 +186,12 @@ enum CatalogSortOrder: String, CaseIterable {
     )
     .padding(.vertical, 4)
 }
+
+#Preview("CatalogThreadRow — watched") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        isWatched: true
+    )
+    .padding(.vertical, 4)
+}
