@@ -177,11 +177,15 @@ final class ForegroundRefreshService {
                 // Update SwiftData watched thread state
                 let newPosts = posts.filter { $0.no > watched.lastSeenPostNo }
                 if !newPosts.isEmpty {
+                    let myPostsKey = MyPosts.key(board: board, threadNo: threadNo)
+                    let myPostsDescriptor = FetchDescriptor<MyPosts>(predicate: #Predicate { $0.threadKey == myPostsKey })
+                    let myPostNumbers = Set((try? context.fetch(myPostsDescriptor))?.first?.postNumbers ?? [])
                     await NotificationService.shared.notify(
                         board: board,
                         threadNo: threadNo,
                         subject: watched.subject,
-                        newPosts: newPosts
+                        newPosts: newPosts,
+                        myPostNumbers: myPostNumbers
                     )
                     watched.lastSeenPostNo = posts.last!.no
                     watched.newReplyCount += newPosts.count
