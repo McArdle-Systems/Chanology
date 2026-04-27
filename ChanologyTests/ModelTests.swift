@@ -288,6 +288,36 @@ private let catalogThreadJSON = """
     #expect(thread.plainTextComment == "Welcome\nPost here")
 }
 
+// MARK: - Starred boards store
+
+@Test @MainActor func starredStore_toggle_starsUnstarredBoard() {
+    let store = StarredBoardsStore.shared
+    store.boardIDs = []
+    store.toggle("g")
+    #expect(store.isStarred("g") == true)
+}
+
+@Test @MainActor func starredStore_toggle_unstarsStarredBoard() {
+    let store = StarredBoardsStore.shared
+    store.boardIDs = ["g"]
+    store.toggle("g")
+    #expect(store.isStarred("g") == false)
+}
+
+@Test @MainActor func starredStore_isStarred_falseForUnstarredBoard() {
+    let store = StarredBoardsStore.shared
+    store.boardIDs = ["a"]
+    #expect(store.isStarred("g") == false)
+}
+
+@Test @MainActor func starredStore_toggle_doesNotAffectOtherBoards() {
+    let store = StarredBoardsStore.shared
+    store.boardIDs = ["a", "g"]
+    store.toggle("g")
+    #expect(store.isStarred("a") == true)
+    #expect(store.isStarred("g") == false)
+}
+
 // MARK: - Board filtering
 
 @Test @MainActor func service_workSafeBoards_excludesNSFW() {
