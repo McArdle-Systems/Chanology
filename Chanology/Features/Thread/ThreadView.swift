@@ -190,9 +190,7 @@ struct ThreadView: View {
                 }
             }
         }
-        .refreshable {
-            await refreshThread(userInitiated: true)
-        }
+        .refreshable { await refreshThread(userInitiated: true) }
         .onDisappear {
             markVisiblePostsAsRead()
             // Evict cached posts if the thread isn't watched (save memory)

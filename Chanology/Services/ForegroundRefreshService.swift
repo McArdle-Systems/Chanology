@@ -58,7 +58,8 @@ final class ForegroundRefreshService {
     // MARK: - Boards API
 
     func fetchBoards() async {
-        boardsLoading = true
+        let isInitialLoad = boards.isEmpty
+        if isInitialLoad { boardsLoading = true }
         defer { boardsLoading = false }
         do {
             boards = try await ChanAPI.shared.boards()
@@ -71,7 +72,8 @@ final class ForegroundRefreshService {
     // MARK: - Catalog API
 
     func fetchCatalog(board: String) async {
-        catalogLoading[board] = true
+        let isInitialLoad = catalogs[board] == nil
+        if isInitialLoad { catalogLoading[board] = true }
         defer { catalogLoading[board] = false }
         do {
             catalogs[board] = try await ChanAPI.shared.catalog(board: board)
@@ -93,7 +95,8 @@ final class ForegroundRefreshService {
 
     func fetchThread(board: String, threadNo: Int) async {
         let key = Self.threadKey(board: board, threadNo: threadNo)
-        threadLoading[key] = true
+        let isInitialLoad = threadPosts[key] == nil
+        if isInitialLoad { threadLoading[key] = true }
         defer { threadLoading[key] = false }
         do {
             threadPosts[key] = try await ChanAPI.shared.thread(board: board, no: threadNo)
