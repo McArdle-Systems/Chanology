@@ -71,14 +71,16 @@ final class ForegroundRefreshService {
 
     // MARK: - Catalog API
 
-    func fetchCatalog(board: String) async {
+    func fetchCatalog(board: String, caller: String = "?") async {
+        print("[FRS] fetchCatalog(\(board)) START caller=\(caller) alreadyCancelled=\(Task.isCancelled)")
+        defer { print("[FRS] fetchCatalog(\(board)) END caller=\(caller)") }
         catalogLoading[board] = true
         defer { catalogLoading[board] = false }
         do {
             catalogs[board] = try await ChanAPI.shared.catalog(board: board)
             catalogError.removeValue(forKey: board)
         } catch {
-            print("[FRS] fetchCatalog(\(board)) — \(type(of: error)): \(error)")
+            print("[FRS] fetchCatalog(\(board)) ERROR caller=\(caller) — \(type(of: error)): \(error)")
             catalogError[board] = error
         }
     }
