@@ -1,10 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct CatalogView: View {
     let board: Board
     @State private var service = ForegroundRefreshService.shared
     @State private var searchText: String = ""
     @State private var sortOrder: CatalogSortOrder = .bumpOrder
+    @Query private var watchedThreads: [WatchedThread]
 
     var body: some View {
         Group {
@@ -15,7 +17,11 @@ struct CatalogView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(filteredThreads) { thread in
                             NavigationLink(value: thread) {
-                                CatalogThreadRow(thread: thread, board: board.board)
+                                CatalogThreadRow(
+                                    thread: thread,
+                                    board: board.board,
+                                    isWatched: watchedThreads.contains { $0.board == board.board && $0.threadNo == thread.no }
+                                )
                             }
                             .buttonStyle(.plain)
                             Divider()
@@ -74,6 +80,7 @@ struct CatalogView: View {
 struct CatalogThreadRow: View {
     let thread: CatalogThread
     let board: String
+    var isWatched: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -116,6 +123,16 @@ struct CatalogThreadRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .overlay(alignment: .topTrailing) {
+            if isWatched {
+                Image(systemName: "bell.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(Color.red, in: Circle())
+                    .padding(8)
+            }
+        }
         .contentShape(Rectangle())
     }
 }
@@ -166,6 +183,15 @@ enum CatalogSortOrder: String, CaseIterable {
     CatalogThreadRow(
         thread: mockCatalogThread(replies: 1337),
         board: "g"
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — watched") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        isWatched: true
     )
     .padding(.vertical, 4)
 }
