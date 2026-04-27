@@ -13,30 +13,15 @@ actor NotificationService {
             return
         }
 
+        let payload = NotificationService.buildContent(
+            board: board, subject: subject, newPosts: newPosts, myPostNumbers: myPostNumbers
+        )
+
         let content = UNMutableNotificationContent()
-        content.title = "/\(board)/ — \(subject)"
-
-        let directReplies = myPostNumbers.isEmpty ? [] : newPosts.filter { post in
-            ReplyMapBuilder.quotedPosts(in: post).contains(where: myPostNumbers.contains)
-        }
-        let otherCount = newPosts.count - directReplies.count
-
-        if directReplies.count == 1 && otherCount == 0 {
-            // Single direct reply — show its text with a prefix
-            let text = directReplies[0].plainTextComment?.prefix(200).description ?? "New reply"
-            content.body = "@(You): \(text)"
-        } else if directReplies.count > 1 && otherCount == 0 {
-            content.body = "\(directReplies.count) replies to you"
-        } else if directReplies.count > 0 {
-            content.body = "\(directReplies.count) \(directReplies.count == 1 ? "reply" : "replies") to you + \(otherCount) \(otherCount == 1 ? "other" : "others")"
-        } else if newPosts.count == 1, let comment = newPosts[0].plainTextComment {
-            content.body = comment.prefix(200).description
-        } else {
-            content.body = "\(newPosts.count) new replies"
-        }
-
+        content.title = payload.title
+        content.body = payload.body
         let customSounds = UserDefaults.standard.object(forKey: "customNotificationSounds") as? Bool ?? true
-        content.sound = (customSounds && !directReplies.isEmpty)
+        content.sound = (customSounds && payload.isDirectReply)
             ? UNNotificationSound(named: UNNotificationSoundName("Hey You.caf"))
             : .default
         content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
@@ -53,5 +38,43 @@ actor NotificationService {
         } catch {
             print("[Notifications] Failed to deliver: \(error)")
         }
+    }
+
+    // MARK: - Testable content builder
+
+    struct Payload {
+        let title: String
+        let body: String
+        let isDirectReply: Bool
+    }
+
+    static func buildContent(
+        board: String,
+        subject: String,
+        newPosts: [Post],
+        myPostNumbers: Set<Int>
+    ) -> Payload {
+        let title = "/\(board)/ — \(subject)"
+
+        let directReplies = myPostNumbers.isEmpty ? [] : newPosts.filter { post in
+            ReplyMapBuilder.quotedPosts(in: post).contains(where: myPostNumbers.contains)
+        }
+        let otherCount = newPosts.count - directReplies.count
+
+        let body: String
+        if directReplies.count == 1 && otherCount == 0 {
+            let text = directReplies[0].plainTextComment?.prefix(200).description ?? "New reply"
+            body = "@(You): \(text)"
+        } else if directReplies.count > 1 && otherCount == 0 {
+            body = "\(directReplies.count) replies to you"
+        } else if directReplies.count > 0 {
+            body = "\(directReplies.count) \(directReplies.count == 1 ? "reply" : "replies") to you + \(otherCount) \(otherCount == 1 ? "other" : "others")"
+        } else if newPosts.count == 1, let comment = newPosts[0].plainTextComment {
+            body = comment.prefix(200).description
+        } else {
+            body = "\(newPosts.count) new replies"
+        }
+
+        return Payload(title: title, body: body, isDirectReply: !directReplies.isEmpty)
     }
 }

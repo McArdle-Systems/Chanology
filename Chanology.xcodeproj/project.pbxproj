@@ -22,6 +22,7 @@
 		AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000003 /* PostHTMLRendererTests.swift */; };
 		AA00000000000000000008 /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000004 /* ModelTests.swift */; };
 		AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000005 /* ThreadRefreshLogicTests.swift */; };
+		9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB4DD595F8E4A6FADD6F213 /* NotificationServiceTests.swift */; };
 		AB8B4ECA9616F372A298A134 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 230475872652212EE7EA09BE /* Assets.xcassets */; };
 		B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */; };
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
@@ -70,6 +71,7 @@
 		AA00000000000000000003 /* PostHTMLRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHTMLRendererTests.swift; sourceTree = "<group>"; };
 		AA00000000000000000004 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
 		AA00000000000000000005 /* ThreadRefreshLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogicTests.swift; sourceTree = "<group>"; };
+		0BB4DD595F8E4A6FADD6F213 /* NotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationServiceTests.swift; sourceTree = "<group>"; };
 		BB00000000000000000002 /* ForegroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRefreshService.swift; sourceTree = "<group>"; };
 		C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadView.swift; sourceTree = "<group>"; };
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
@@ -202,6 +204,7 @@
 				AA00000000000000000003 /* PostHTMLRendererTests.swift */,
 				AA00000000000000000004 /* ModelTests.swift */,
 				AA00000000000000000005 /* ThreadRefreshLogicTests.swift */,
+				0BB4DD595F8E4A6FADD6F213 /* NotificationServiceTests.swift */,
 			);
 			path = ChanologyTests;
 			sourceTree = "<group>";
@@ -378,6 +381,7 @@
 				AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */,
 				AA00000000000000000008 /* ModelTests.swift in Sources */,
 				AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */,
+				9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
