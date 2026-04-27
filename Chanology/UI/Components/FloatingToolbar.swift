@@ -14,6 +14,7 @@ struct ToolbarAction: Identifiable {
     let label: String
     var role: Role = .standard
     var isEnabled: Bool = true
+    var showSlash: Bool = false
     var badge: String? = nil
     let action: () -> Void
 
@@ -23,6 +24,7 @@ struct ToolbarAction: Identifiable {
         label: String,
         role: Role = .standard,
         isEnabled: Bool = true,
+        showSlash: Bool = false,
         badge: String? = nil,
         action: @escaping () -> Void
     ) {
@@ -31,6 +33,7 @@ struct ToolbarAction: Identifiable {
         self.label = label
         self.role = role
         self.isEnabled = isEnabled
+        self.showSlash = showSlash
         self.badge = badge
         self.action = action
     }
@@ -150,6 +153,7 @@ private struct ToolbarButton: View {
                         x: 0, y: isToolbarArmed ? 3 : 1)
                 .contentShape(Circle())
                 .overlay(alignment: .topTrailing) { badgeView }
+                .overlay { slashOverlay }
         }
         .buttonStyle(.plain)
         .disabled(!action.isEnabled)
@@ -164,6 +168,17 @@ private struct ToolbarButton: View {
             Circle().fill(Color.accentColor)
         default:
             Circle().fill(.ultraThinMaterial)
+        }
+    }
+
+    @ViewBuilder
+    private var slashOverlay: some View {
+        if action.showSlash {
+            Rectangle()
+                .frame(width: 2, height: 50)
+                .rotationEffect(.degrees(45))
+                .foregroundStyle(.primary.opacity(0.45))
+                .clipShape(Circle())
         }
     }
 
