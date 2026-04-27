@@ -1,10 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct CatalogView: View {
     let board: Board
     @State private var service = ForegroundRefreshService.shared
     @State private var searchText: String = ""
     @State private var sortOrder: CatalogSortOrder = .bumpOrder
+    @Query private var watchedThreads: [WatchedThread]
 
     var body: some View {
         Group {
@@ -15,7 +17,11 @@ struct CatalogView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(filteredThreads) { thread in
                             NavigationLink(value: thread) {
-                                CatalogThreadRow(thread: thread, board: board.board)
+                                CatalogThreadRow(
+                                    thread: thread,
+                                    board: board.board,
+                                    isWatched: watchedThreads.contains { $0.board == board.board && $0.threadNo == thread.no }
+                                )
                             }
                             .buttonStyle(.plain)
                             Divider()
@@ -74,23 +80,36 @@ struct CatalogView: View {
 struct CatalogThreadRow: View {
     let thread: CatalogThread
     let board: String
+    var isWatched: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Thumbnail
-            if let url = thread.thumbnailURL(board: board) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.secondary.opacity(0.2)
-                }
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.secondary.opacity(0.15))
+            Group {
+                if let url = thread.thumbnailURL(board: board) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.secondary.opacity(0.2)
+                    }
                     .frame(width: 80, height: 80)
-                    .overlay(Image(systemName: "text.bubble").foregroundStyle(.secondary))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(width: 80, height: 80)
+                        .overlay(Image(systemName: "text.bubble").foregroundStyle(.secondary))
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if isWatched {
+                    Image(systemName: "bell.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.red, in: Circle())
+                        .offset(x: 6, y: -6)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
