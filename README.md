@@ -22,18 +22,7 @@ A native iOS client for 4chan, built with SwiftUI.
 
 ## Building
 
-The project uses [XcodeGen](https://github.com/yonaskolb/XcodeGen) to generate the `.xcodeproj`.
-
-```bash
-# Install XcodeGen if needed
-brew install xcodegen
-
-# Generate the project
-xcodegen generate
-
-# Open in Xcode
-open Chanology.xcodeproj
-```
+Open the project with Xcode.
 
 No other dependencies — the app uses only Apple frameworks.
 
