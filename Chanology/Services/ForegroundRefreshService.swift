@@ -64,27 +64,19 @@ final class ForegroundRefreshService {
             boards = try await ChanAPI.shared.boards()
             boardsError = nil
         } catch {
-            print("[FRS] fetchBoards — \(type(of: error)): \(error)")
             boardsError = error
         }
     }
 
     // MARK: - Catalog API
 
-    func fetchCatalog(board: String, caller: String = "?") async {
-        print("[FRS] fetchCatalog(\(board)) START caller=\(caller) alreadyCancelled=\(Task.isCancelled)")
-        defer { print("[FRS] fetchCatalog(\(board)) END caller=\(caller)") }
+    func fetchCatalog(board: String) async {
         catalogLoading[board] = true
         defer { catalogLoading[board] = false }
         do {
-            try await withTaskCancellationHandler {
-                catalogs[board] = try await ChanAPI.shared.catalog(board: board)
-                catalogError.removeValue(forKey: board)
-            } onCancel: {
-                print("[FRS] fetchCatalog(\(board)) ⚠️ SWIFT TASK CANCELLED caller=\(caller)")
-            }
+            catalogs[board] = try await ChanAPI.shared.catalog(board: board)
+            catalogError.removeValue(forKey: board)
         } catch {
-            print("[FRS] fetchCatalog(\(board)) ERROR caller=\(caller) — \(type(of: error)): \(error)")
             catalogError[board] = error
         }
     }
@@ -107,7 +99,6 @@ final class ForegroundRefreshService {
             threadPosts[key] = try await ChanAPI.shared.thread(board: board, no: threadNo)
             threadError.removeValue(forKey: key)
         } catch {
-            print("[FRS] fetchThread(\(key)) — \(type(of: error)): \(error)")
             threadError[key] = error
         }
     }
