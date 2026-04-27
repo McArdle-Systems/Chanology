@@ -132,6 +132,7 @@ struct BoardRow: View {
 
 struct SettingsView: View {
     @AppStorage("showNSFWBoards") private var showNSFWBoards: Bool = false
+    @AppStorage("notificationSoundEnabled") private var notificationSoundEnabled: Bool = true
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -139,6 +140,9 @@ struct SettingsView: View {
             Form {
                 Section("Content") {
                     Toggle("Show NSFW Boards", isOn: $showNSFWBoards)
+                }
+                Section("Notifications") {
+                    Toggle("Play Sound", isOn: $notificationSoundEnabled)
                 }
             }
             .navigationTitle("Settings")

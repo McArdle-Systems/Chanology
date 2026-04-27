@@ -35,7 +35,8 @@ actor NotificationService {
             content.body = "\(newPosts.count) new replies"
         }
 
-        content.sound = .default
+        let soundEnabled = UserDefaults.standard.object(forKey: "notificationSoundEnabled") as? Bool ?? true
+        content.sound = soundEnabled ? .default : nil
         content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
 
         let request = UNNotificationRequest(

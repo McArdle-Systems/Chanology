@@ -318,6 +318,23 @@ private let catalogThreadJSON = """
     #expect(store.isStarred("g") == false)
 }
 
+// MARK: - Notification sound preference
+
+@Test func notificationSound_defaultsToEnabled() {
+    let defaults = UserDefaults(suiteName: "test.notificationSound")!
+    defaults.removeObject(forKey: "notificationSoundEnabled")
+    let enabled = defaults.object(forKey: "notificationSoundEnabled") as? Bool ?? true
+    #expect(enabled == true)
+}
+
+@Test func notificationSound_respectsDisabledPreference() {
+    let defaults = UserDefaults(suiteName: "test.notificationSound")!
+    defaults.set(false, forKey: "notificationSoundEnabled")
+    let enabled = defaults.object(forKey: "notificationSoundEnabled") as? Bool ?? true
+    #expect(enabled == false)
+    defaults.removeObject(forKey: "notificationSoundEnabled")
+}
+
 // MARK: - Board filtering
 
 @Test @MainActor func service_workSafeBoards_excludesNSFW() {
