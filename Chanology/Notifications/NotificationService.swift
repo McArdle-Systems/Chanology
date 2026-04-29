@@ -27,7 +27,7 @@ actor NotificationService {
         content.userInfo = ["board": board, "threadNo": threadNo, "subject": subject]
 
         let request = UNNotificationRequest(
-            identifier: "\(board)-\(threadNo)-\(newPosts.first?.no ?? 0)",
+            identifier: "\(board)-\(threadNo)",
             content: content,
             trigger: nil
         )
