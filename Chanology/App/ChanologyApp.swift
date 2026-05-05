@@ -60,6 +60,8 @@ class NavigationCoordinator {
 
 struct ContentView: View {
     @State private var coordinator = NavigationCoordinator.shared
+    @Query(filter: #Predicate<WatchedThread> { $0.newReplyCount > 0 })
+    private var unreadThreads: [WatchedThread]
 
     var body: some View {
         TabView(selection: $coordinator.selectedTab) {
@@ -73,6 +75,7 @@ struct ContentView: View {
                 WatchListView()
             }
             .tabItem { Label("Watching", systemImage: "bell") }
+            .badge(unreadThreads.count)
             .tag(1)
         }
     }
