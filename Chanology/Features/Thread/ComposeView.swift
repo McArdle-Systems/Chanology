@@ -211,7 +211,10 @@ struct ComposeView: View {
             parts.append(contentsOf: lines)
         }
         guard !parts.isEmpty else { return }
-        commentText = parts.joined(separator: "\n") + "\n"
+        
+        // Combine existing quotes and the snippet, then join with newlines
+        let combined = parts.joined(separator: "\n")
+        commentText = combined + "\n"
     }
 
     private func submitPost() async {
