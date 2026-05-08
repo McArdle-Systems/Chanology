@@ -299,7 +299,6 @@ struct ThreadView: View {
                 showArchivedToast = false
             }
         } else if ChanPostAPI.shared.isAuthenticated {
-            quotedSnippet = nil
             showCompose = true
         } else {
             Task {
