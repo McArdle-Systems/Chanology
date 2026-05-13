@@ -369,7 +369,8 @@ struct ThreadView: View {
             let inSubject  = post.decodedSubject?.lowercased().contains(query) == true
             let inName     = post.name?.lowercased().contains(query) == true
             let inFilename = post.filename?.lowercased().contains(query) == true
-            return (inComment || inSubject || inName || inFilename) ? post.no : nil
+            let inID       = post.posterID?.lowercased().contains(query) == true
+            return (inComment || inSubject || inName || inFilename || inID) ? post.no : nil
         }
         searchMatches = newMatches
         currentMatchIndex = 0
@@ -779,9 +780,8 @@ struct PostView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let id = post.posterID {
-                    Text("ID:\(id)")
+                    highlighted("ID:\(id)", foreground: .white)
                         .font(.caption2)
-                        .foregroundStyle(.white)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.gray.opacity(0.5), in: Capsule())
