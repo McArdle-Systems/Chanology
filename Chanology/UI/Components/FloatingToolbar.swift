@@ -266,7 +266,7 @@ private extension Array where Element == ToolbarAction {
         [
             ToolbarAction(icon: "arrow.up", label: "Scroll to top", action: {}),
             ToolbarAction(icon: "magnifyingglass", label: "Search thread", action: {}),
-            ToolbarAction(icon: "bell.slash", label: "Mute", action: {}),
+            ToolbarAction(icon: "bell.fill", label: "Stop watching", role: .prominent, action: {}),
             ToolbarAction(icon: "square.and.pencil", label: "Reply", role: .prominent, action: {}),
             ToolbarAction(icon: "arrow.down", label: "Scroll to bottom", action: {}),
         ]
