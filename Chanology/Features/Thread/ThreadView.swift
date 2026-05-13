@@ -364,9 +364,12 @@ struct ThreadView: View {
         }
         let query = searchText.lowercased()
         let newMatches = posts.compactMap { post -> Int? in
-            let inComment = post.plainTextComment?.lowercased().contains(query) == true
-            let inSubject = post.decodedSubject?.lowercased().contains(query) == true
-            return (inComment || inSubject) ? post.no : nil
+            let inComment  = post.plainTextComment?.lowercased().contains(query) == true
+            let inSubject  = post.decodedSubject?.lowercased().contains(query) == true
+            let inName     = post.name?.lowercased().contains(query) == true
+            let inFilename = post.filename?.lowercased().contains(query) == true
+            let inID       = post.posterID?.lowercased().contains(query) == true
+            return (inComment || inSubject || inName || inFilename || inID) ? post.no : nil
         }
         searchMatches = newMatches
         currentMatchIndex = 0
@@ -391,7 +394,7 @@ struct ThreadView: View {
         guard currentMatchIndex < searchMatches.count else { return }
         let postNo = searchMatches[currentMatchIndex]
         highlightedPostNo = nil
-        scrollToTarget(AnyHashable(postNo), anchor: .center)
+        scrollToTarget(AnyHashable(postNo), anchor: .top)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))
             withAnimation(.easeIn(duration: 0.2)) {
@@ -748,23 +751,38 @@ struct PostView: View {
     @Environment(\.openURL) private var openURL
     @State private var showPosterPostCount = false
 
+    private func highlighted(_ string: String, foreground: Color) -> Text {
+        var attributed = AttributedString(string)
+        attributed.foregroundColor = foreground
+        guard let query = searchQuery, !query.isEmpty else { return Text(attributed) }
+        let ns = string as NSString
+        var searchRange = NSRange(location: 0, length: ns.length)
+        while searchRange.location < ns.length {
+            let found = ns.range(of: query, options: .caseInsensitive, range: searchRange)
+            guard found.location != NSNotFound, let strRange = Range(found, in: string) else { break }
+            let lo = attributed.index(attributed.startIndex, offsetByCharacters: string.distance(from: string.startIndex, to: strRange.lowerBound))
+            let hi = attributed.index(attributed.startIndex, offsetByCharacters: string.distance(from: string.startIndex, to: strRange.upperBound))
+            attributed[lo..<hi].backgroundColor = Color.yellow.opacity(0.5)
+            searchRange = NSRange(location: NSMaxRange(found), length: ns.length - NSMaxRange(found))
+        }
+        return Text(attributed)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack(spacing: 6) {
-                Text(post.name ?? "Anonymous")
+                highlighted(post.name ?? "Anonymous", foreground: .green)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.green)
                 if let trip = post.trip {
                     Text(trip)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 if let id = post.posterID {
-                    Text("ID:\(id)")
+                    highlighted("ID:\(id)", foreground: .white)
                         .font(.caption2)
-                        .foregroundStyle(.white)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.gray.opacity(0.5), in: Capsule())
@@ -884,9 +902,8 @@ struct PostView: View {
 
                     // Filename display
                     if let filename = post.filename, let ext = post.ext {
-                        Text("\(filename)\(ext)")
+                        highlighted("\(filename)\(ext)", foreground: Color(UIColor.secondaryLabel))
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
