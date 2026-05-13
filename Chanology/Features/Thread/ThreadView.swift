@@ -806,6 +806,15 @@ struct PostView: View {
                         .frame(height: 12)
                         .help(post.flagName ?? "")
                 }
+                if myPostNumbers.contains(post.no) {
+                    Text("(You)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor, in: Capsule())
+                }
                 Spacer()
                 // Tappable post number for quoting
                 Button {
@@ -1483,6 +1492,12 @@ private func mockPost(
     var p = try! JSONDecoder().decode(Post.self, from: data)
     p._board = "g"
     return PostView(post: p)
+        .padding()
+}
+
+#Preview("Post — (You)") {
+    let post = mockPost(no: 11111, com: "Just posted this myself.", resto: 99999)
+    return PostView(post: post, myPostNumbers: [11111])
         .padding()
 }
 
