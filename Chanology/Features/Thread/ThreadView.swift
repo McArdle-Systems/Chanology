@@ -1211,6 +1211,10 @@ struct WebMPlayerView: UIViewRepresentable {
         return webView
     }
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.evaluateJavaScript("document.querySelector('video')?.pause()")
+    }
+
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard context.coordinator.loadedURL != url else { return }
         context.coordinator.loadedURL = url
