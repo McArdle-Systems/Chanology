@@ -1495,6 +1495,12 @@ private func mockPost(
         .padding()
 }
 
+#Preview("Post — (You)") {
+    let post = mockPost(no: 11111, com: "Just posted this myself.", resto: 99999)
+    return PostView(post: post, myPostNumbers: [11111])
+        .padding()
+}
+
 #Preview("Post — bare URLs (real API format)") {
     VStack(spacing: 0) {
         // Real API examples from /g/ — bare URLs with <wbr> mid-URL, no anchor tags
