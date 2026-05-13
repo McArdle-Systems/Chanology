@@ -1204,6 +1204,10 @@ struct VideoPlayerView: View {
 struct WebMPlayerView: UIViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
@@ -1218,6 +1222,9 @@ struct WebMPlayerView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedURL != url else { return }
+        context.coordinator.loadedURL = url
+
         let html = """
         <!DOCTYPE html>
         <html>
@@ -1263,6 +1270,10 @@ struct WebMPlayerView: UIViewRepresentable {
         """
 
         webView.loadHTMLString(html, baseURL: nil)
+    }
+
+    class Coordinator {
+        var loadedURL: URL?
     }
 }
 
