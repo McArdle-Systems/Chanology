@@ -420,6 +420,7 @@ struct ThreadView: View {
                 id: "watch",
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
+                role: isWatched ? .prominent : .standard,
                 action: { toggleWatch() }
             ),
             ToolbarAction(
