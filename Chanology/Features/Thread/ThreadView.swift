@@ -806,6 +806,15 @@ struct PostView: View {
                         .frame(height: 12)
                         .help(post.flagName ?? "")
                 }
+                if myPostNumbers.contains(post.no) {
+                    Text("(You)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor, in: Capsule())
+                }
                 Spacer()
                 // Tappable post number for quoting
                 Button {
