@@ -1408,8 +1408,15 @@ private func mockPost(
     .modelContainer(for: WatchedThread.self, inMemory: true)
 }
 
-#Preview("Thread — Archived") {
-    NavigationStack {
+#Preview("Thread — Archived & Watched") {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: WatchedThread.self, configurations: config)
+    let watched = WatchedThread(board: "g", threadNo: 12345, subject: "Post your desktop / tech setups.", lastSeenPostNo: 12347)
+    watched.isClosed = true
+    watched.isArchived = true
+    container.mainContext.insert(watched)
+
+    return NavigationStack {
         ThreadView(
             board: "g",
             threadNo: 12345,
@@ -1421,7 +1428,7 @@ private func mockPost(
             ],
         )
     }
-    .modelContainer(for: WatchedThread.self, inMemory: true)
+    .modelContainer(container)
 }
 
 #Preview("New Replies Marker") {
