@@ -86,6 +86,14 @@ enum BackgroundRefreshHandler {
                     thread.lastChecked = Date()
                     try? context.save()
                 }
+
+                let isClosedNow = (posts.first?.closed ?? 0) != 0
+                let isArchivedNow = (posts.first?.archived ?? 0) != 0
+                if thread.isClosed != isClosedNow || thread.isArchived != isArchivedNow {
+                    thread.isClosed = isClosedNow
+                    thread.isArchived = isArchivedNow
+                    try? context.save()
+                }
             } catch ChanAPIError.notFound {
                 // Thread 404'd — it was pruned. Remove from watch list.
                 context.delete(thread)

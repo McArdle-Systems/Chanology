@@ -11,6 +11,8 @@ final class WatchedThread {
     var lastReadPostNo: Int = 0
     var newReplyCount: Int
     var lastChecked: Date
+    var isClosed: Bool = false
+    var isArchived: Bool = false
     /// Deprecated: now stored in MyPosts model. Kept to avoid SwiftData migration.
     var myPostNumbers: [Int] = []
 
