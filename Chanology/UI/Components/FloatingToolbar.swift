@@ -7,6 +7,7 @@ struct ToolbarAction: Identifiable {
         case standard
         case prominent
         case destructive
+        case muted
     }
 
     let id: String
@@ -157,7 +158,7 @@ private struct ToolbarButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!action.isEnabled)
-        .opacity(action.isEnabled ? 1 : 0.4)
+        .opacity(!action.isEnabled && action.role != .muted ? 0.4 : 1)
         .accessibilityLabel(accessibilityLabel)
     }
 
@@ -208,6 +209,7 @@ private struct ToolbarButton: View {
         case .standard:    return .primary
         case .prominent:   return .white
         case .destructive: return .red
+        case .muted:       return .secondary
         }
     }
 }

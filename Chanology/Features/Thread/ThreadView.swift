@@ -226,7 +226,7 @@ struct ThreadView: View {
         }
         .overlay(alignment: .bottom) {
             if showArchivedToast {
-                Text("This thread has been archived and can no longer be replied to.")
+                Text("This thread is closed and can no longer be replied to.")
                     .font(.subheadline)
                     .padding()
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -288,7 +288,7 @@ struct ThreadView: View {
 
     private var isThreadClosed: Bool {
         guard let op = posts.first else { return false }
-        return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
+        return (op.closed ?? 0) != 0
     }
 
     private func triggerCompose() {
@@ -422,14 +422,14 @@ struct ThreadView: View {
                 id: "watch",
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
-                role: isWatched ? .prominent : .standard,
+                role: isThreadClosed ? .muted : (isWatched ? .prominent : .standard),
                 action: { toggleWatch() }
             ),
             ToolbarAction(
                 id: "reply",
                 icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
                 label: isThreadClosed ? "Thread archived" : "Reply",
-                role: isThreadClosed ? .standard : .prominent,
+                role: isThreadClosed ? .muted : .prominent,
                 isEnabled: !isAuthenticating,
                 showSlash: isThreadClosed,
                 badge: (selectedQuotes.isEmpty || isThreadClosed) ? nil : "\(selectedQuotes.count)",
@@ -594,6 +594,14 @@ struct ThreadView: View {
     }
 
     private func toggleWatch() {
+        if isThreadClosed, !watchedThreads.contains(where: { $0.board == board && $0.threadNo == threadNo }) {
+            showArchivedToast = true
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                showArchivedToast = false
+            }
+            return
+        }
         if let existing = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
             modelContext.delete(existing)
         } else {
@@ -603,6 +611,8 @@ struct ThreadView: View {
                 subject: subject,
                 lastSeenPostNo: posts.last?.no ?? 0
             )
+            watched.isClosed = isThreadClosed
+        watched.isArchived = (posts.first?.archived ?? 0) != 0
             modelContext.insert(watched)
         }
     }
@@ -637,6 +647,9 @@ struct ThreadView: View {
                 watched.lastChecked = Date()
             }
         }
+
+        watched.isClosed = isThreadClosed
+        watched.isArchived = (posts.first?.archived ?? 0) != 0
     }
 
     /// Called when the background poller updates posts for this thread
@@ -1402,8 +1415,15 @@ private func mockPost(
     .modelContainer(for: WatchedThread.self, inMemory: true)
 }
 
-#Preview("Thread — Archived") {
-    NavigationStack {
+#Preview("Thread — Archived & Watched") {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: WatchedThread.self, configurations: config)
+    let watched = WatchedThread(board: "g", threadNo: 12345, subject: "Post your desktop / tech setups.", lastSeenPostNo: 12347)
+    watched.isClosed = true
+    watched.isArchived = true
+    container.mainContext.insert(watched)
+
+    return NavigationStack {
         ThreadView(
             board: "g",
             threadNo: 12345,
@@ -1412,10 +1432,10 @@ private func mockPost(
                 mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Post your desktop / tech setups.", closed: 1, archived: 1),
                 mockPost(no: 12346, com: "Nice setup anon", resto: 12345),
                 mockPost(no: 12347, com: "Thread archived, RIP", resto: 12345),
-            ]
+            ],
         )
     }
-    .modelContainer(for: WatchedThread.self, inMemory: true)
+    .modelContainer(container)
 }
 
 #Preview("New Replies Marker") {

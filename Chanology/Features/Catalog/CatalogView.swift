@@ -124,14 +124,23 @@ struct CatalogThreadRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .overlay(alignment: .topTrailing) {
-            if isWatched {
-                Image(systemName: "bell.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.white)
-                    .padding(4)
-                    .background(Color.red, in: Circle())
-                    .padding(8)
+            VStack(spacing: 4) {
+                if (thread.sticky ?? 0) != 0 {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.purple, in: Circle())
+                }
+                if isWatched {
+                    Image(systemName: "bell.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.red, in: Circle())
+                }
             }
+            .padding(8)
         }
         .contentShape(Rectangle())
     }
@@ -146,12 +155,13 @@ private let previewBoard = Board(
     maxCommentChars: 2000, isArchived: nil, boardFlags: nil
 )
 
-private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42) -> CatalogThread {
+private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42, sticky: Bool = false) -> CatalogThread {
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": no, "now": "01/01/25(Wed)12:00:00",
         "sub": sub as Any,
         "com": (com ?? "&gt;be me<br>post tech things<br>get (you)s") as Any,
-        "replies": replies, "images": 10, "last_modified": 1735000000
+        "replies": replies, "images": 10, "last_modified": 1735000000,
+        "sticky": sticky ? 1 : 0
     ] as [String: Any])
     var t = try! JSONDecoder().decode(CatalogThread.self, from: data)
     t._board = "g"
@@ -190,6 +200,23 @@ enum CatalogSortOrder: String, CaseIterable {
 #Preview("CatalogThreadRow — watched") {
     CatalogThreadRow(
         thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        isWatched: true
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — sticky") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "Welcome to /g/ — READ BEFORE POSTING", replies: 0, sticky: true),
+        board: "g"
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — sticky + watched") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "Welcome to /g/ — READ BEFORE POSTING", replies: 0, sticky: true),
         board: "g",
         isWatched: true
     )

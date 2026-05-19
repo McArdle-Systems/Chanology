@@ -83,8 +83,12 @@ struct WatchListView: View {
     t1.newReplyCount = 7
     let t2 = WatchedThread(board: "a", threadNo: 99999, subject: "Seasonal anime general", lastSeenPostNo: 500)
     t2.newReplyCount = 0
+    let t3 = WatchedThread(board: "g", threadNo: 11111, subject: "Old thread that got archived", lastSeenPostNo: 100)
+    t3.isClosed = true
+    t3.isArchived = true
     container.mainContext.insert(t1)
     container.mainContext.insert(t2)
+    container.mainContext.insert(t3)
 
     return NavigationStack { WatchListView() }
         .modelContainer(container)
@@ -105,12 +109,21 @@ struct WatchedThreadRow: View {
             Text(thread.subject)
                 .font(.headline)
                 .lineLimit(1)
+                .foregroundStyle(thread.isArchived ? .secondary : .primary)
             HStack {
                 Text("/\(thread.board)/")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                if thread.newReplyCount > 0 {
+                if thread.isArchived {
+                    Text("Archived")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(.secondary.opacity(0.15), in: Capsule())
+                } else if thread.newReplyCount > 0 {
                     Text("\(thread.newReplyCount) new")
                         .font(.caption)
                         .fontWeight(.semibold)
