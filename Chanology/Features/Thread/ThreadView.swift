@@ -423,6 +423,7 @@ struct ThreadView: View {
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
                 role: isWatched ? (isThreadClosed ? .muted : .prominent) : .standard,
+                isEnabled: !isThreadClosed || isWatched,
                 action: { toggleWatch() }
             ),
             ToolbarAction(
