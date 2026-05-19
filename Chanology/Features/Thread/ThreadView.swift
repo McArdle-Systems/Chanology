@@ -422,7 +422,7 @@ struct ThreadView: View {
                 id: "watch",
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
-                role: isWatched ? (isThreadClosed ? .muted : .prominent) : .standard,
+                role: isThreadClosed ? .muted : (isWatched ? .prominent : .standard),
                 isEnabled: !isThreadClosed || isWatched,
                 action: { toggleWatch() }
             ),
