@@ -34,6 +34,8 @@ struct ThreadView: View {
     @State private var quotedSnippet: String? = nil
     @State private var isAuthenticating = false
     @State private var showArchivedToast = false
+    @State private var pendingQuoteText: String? = nil
+    @State private var pendingQuotePostNo: Int? = nil
     @State private var visiblePosts: Set<Int> = []
     @State private var lastKnownPostCount: Int = 0
     @Query private var watchedThreads: [WatchedThread]
@@ -298,21 +300,36 @@ struct ThreadView: View {
                 try? await Task.sleep(for: .seconds(2))
                 showArchivedToast = false
             }
-        } else if ChanPostAPI.shared.isAuthenticated {
-            showCompose = true
         } else {
-            Task {
-                isAuthenticating = true
-                do {
-                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
-                    quotedSnippet = nil
-                    showCompose = true
-                } catch {
-                    showLogin = true
+            applyPendingQuote()
+            if ChanPostAPI.shared.isAuthenticated {
+                showCompose = true
+            } else {
+                Task {
+                    isAuthenticating = true
+                    do {
+                        try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                        showCompose = true
+                    } catch {
+                        showLogin = true
+                    }
+                    isAuthenticating = false
                 }
-                isAuthenticating = false
             }
         }
+    }
+
+    private func applyPendingQuote() {
+        if let text = pendingQuoteText {
+            quotedSnippet = text
+            if let postNo = pendingQuotePostNo, !selectedQuotes.contains(postNo) {
+                selectedQuotes.insert(postNo, at: 0)
+            }
+        } else {
+            quotedSnippet = nil
+        }
+        pendingQuoteText = nil
+        pendingQuotePostNo = nil
     }
 
     private func scrollToTop() {
@@ -504,9 +521,16 @@ struct ThreadView: View {
             },
             onQuote: { selected in
                 quotedSnippet = selected
+                if !selectedQuotes.contains(post.no) {
+                    selectedQuotes.insert(post.no, at: 0)
+                }
                 DispatchQueue.main.async {
                     showCompose = true
                 }
+            },
+            onSelectionChange: { text in
+                pendingQuoteText = text
+                pendingQuotePostNo = text != nil ? post.no : nil
             }
         )
         .id(post.no)
@@ -760,6 +784,7 @@ struct PostView: View {
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
     var onQuote: ((String) -> Void)?
+    var onSelectionChange: ((String?) -> Void)?
 
     @Environment(\.openURL) private var openURL
     @State private var showPosterPostCount = false
@@ -925,7 +950,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery, onSelectionChange: onSelectionChange) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)

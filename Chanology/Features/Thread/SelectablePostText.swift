@@ -8,6 +8,7 @@ struct SelectablePostText: UIViewRepresentable {
     let html: String
     let myPostNumbers: [Int]
     var searchQuery: String? = nil
+    var onSelectionChange: ((String?) -> Void)?
     var onQuote: ((String) -> Void)?
     var onLinkTap: ((URL) -> Void)?
 
@@ -51,6 +52,7 @@ struct SelectablePostText: UIViewRepresentable {
         }
         uiView.onQuote = onQuote
         context.coordinator.onLinkTap = onLinkTap
+        context.coordinator.onSelectionChange = onSelectionChange
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: QuotableTextView, context: Context) -> CGSize? {
@@ -63,9 +65,21 @@ struct SelectablePostText: UIViewRepresentable {
 
     class Coordinator: NSObject, UITextViewDelegate {
         var onLinkTap: ((URL) -> Void)?
+        var onSelectionChange: ((String?) -> Void)?
 
         init(onLinkTap: ((URL) -> Void)?) {
             self.onLinkTap = onLinkTap
+        }
+
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            guard let range = textView.selectedTextRange,
+                  !range.isEmpty,
+                  let text = textView.text(in: range),
+                  !text.isEmpty else {
+                onSelectionChange?(nil)
+                return
+            }
+            onSelectionChange?(text)
         }
 
         func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
