@@ -226,7 +226,7 @@ struct ThreadView: View {
         }
         .overlay(alignment: .bottom) {
             if showArchivedToast {
-                Text("This thread has been archived and can no longer be replied to.")
+                Text("This thread is closed and can no longer be replied to.")
                     .font(.subheadline)
                     .padding()
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
