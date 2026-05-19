@@ -158,7 +158,7 @@ private struct ToolbarButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!action.isEnabled)
-        .opacity(action.isEnabled ? 1 : 0.4)
+        .opacity(!action.isEnabled && action.role != .muted ? 0.4 : 1)
         .accessibilityLabel(accessibilityLabel)
     }
 
