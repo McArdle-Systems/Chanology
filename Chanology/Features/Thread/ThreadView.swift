@@ -423,7 +423,6 @@ struct ThreadView: View {
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
                 role: isThreadClosed ? .muted : (isWatched ? .prominent : .standard),
-                isEnabled: !isThreadClosed || isWatched,
                 action: { toggleWatch() }
             ),
             ToolbarAction(
@@ -595,6 +594,14 @@ struct ThreadView: View {
     }
 
     private func toggleWatch() {
+        if isThreadClosed, !watchedThreads.contains(where: { $0.board == board && $0.threadNo == threadNo }) {
+            showArchivedToast = true
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                showArchivedToast = false
+            }
+            return
+        }
         if let existing = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
             modelContext.delete(existing)
         } else {
