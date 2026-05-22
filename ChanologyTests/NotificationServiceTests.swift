@@ -8,7 +8,7 @@ private func makePost(no: Int, com: String? = nil) -> Post {
     Post(
         no: no, now: "", name: nil, trip: nil, posterID: nil, capcode: nil,
         com: com, sub: nil, tim: nil, filename: nil, ext: nil, fsize: nil,
-        w: nil, h: nil, tnW: nil, tnH: nil, md5: nil, resto: 99999,
+        w: nil, h: nil, tnW: nil, tnH: nil, md5: nil, mobileImg: nil, resto: 99999,
         replies: nil, images: nil, sticky: nil, closed: nil, archived: nil,
         bumplimit: nil, imagelimit: nil, country: nil, countryName: nil,
         boardFlag: nil, flagName: nil
