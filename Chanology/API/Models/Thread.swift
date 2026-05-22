@@ -13,6 +13,7 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
     let h: Int?
     let tnW: Int?
     let tnH: Int?
+    let mobileImg: Int?
     let replies: Int
     let images: Int
     let sticky: Int?
@@ -29,6 +30,13 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
         return URL(string: "https://i.4cdn.org/\(board)/\(tim)s.jpg")
     }
 
+    var imageAspectRatio: Double? {
+        let imgW = w ?? tnW
+        let imgH = h ?? tnH
+        guard let imgW, let imgH, imgW > 0 else { return nil }
+        return Double(imgH) / Double(imgW)
+    }
+
     var decodedSubject: String? { sub.map { PostHTMLRenderer.decodeEntities($0) } }
 
     var plainTextComment: String? {
@@ -40,6 +48,7 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
         case no, now, name, sub, com, tim, ext, w, h, replies, images, sticky, closed
         case tnW = "tn_w"
         case tnH = "tn_h"
+        case mobileImg = "m_img"
         case omittedPosts = "omitted_posts"
         case omittedImages = "omitted_images"
         case lastModified = "last_modified"
