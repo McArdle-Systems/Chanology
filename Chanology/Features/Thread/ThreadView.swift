@@ -901,8 +901,12 @@ struct PostView: View {
                                 AsyncImage(url: thumbURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    Color.secondary.opacity(0.2)
-                                        .frame(height: 120)
+                                    if let ratio = post.imageAspectRatio {
+                                        let w = min(CGFloat(post.tnW ?? 260), 260)
+                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                                    } else {
+                                        Color.secondary.opacity(0.2).frame(height: 120)
+                                    }
                                 }
                             }
                             Image(systemName: "play.circle.fill")
@@ -920,17 +924,26 @@ struct PostView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .onTapGesture { onImageTap?(url) }
                     } else {
-                        // Static Image
-                        AsyncImage(url: url) { image in
+                        // Static Image — use mobile-optimized version when available
+                        AsyncImage(url: post.mobileImageURL ?? url) { image in
                             image.resizable().scaledToFit()
                         } placeholder: {
                             if let thumbURL = post.thumbnailURL {
                                 AsyncImage(url: thumbURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    Color.secondary.opacity(0.2)
-                                        .frame(height: 120)
+                                    if let ratio = post.imageAspectRatio {
+                                        let w = min(CGFloat(post.tnW ?? 260), 260)
+                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                                    } else {
+                                        Color.secondary.opacity(0.2).frame(height: 120)
+                                    }
                                 }
+                            } else if let ratio = post.imageAspectRatio {
+                                let w = min(CGFloat(post.tnW ?? 260), 260)
+                                Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                            } else {
+                                Color.secondary.opacity(0.2).frame(height: 120)
                             }
                         }
                         .frame(maxWidth: 260)

@@ -19,6 +19,7 @@ struct Post: Codable, Identifiable, Sendable {
     let tnW: Int?            // Thumbnail width
     let tnH: Int?            // Thumbnail height
     let md5: String?         // Image MD5
+    let mobileImg: Int?      // 1 if a mobile-optimized image exists
     let resto: Int           // 0 if OP, else thread number this replies to
     let replies: Int?        // Reply count (OP only)
     let images: Int?         // Image count (OP only)
@@ -41,6 +42,18 @@ struct Post: Codable, Identifiable, Sendable {
     var imageURL: URL? {
         guard let tim, let ext, let board = _board else { return nil }
         return URL(string: "https://i.4cdn.org/\(board)/\(tim)\(ext)")
+    }
+    var mobileImageURL: URL? {
+        guard mobileImg == 1, let tim, let board = _board else { return nil }
+        return URL(string: "https://i.4cdn.org/\(board)/\(tim)m.jpg")
+    }
+    // Aspect ratio (h/w) derived from full image dimensions, falling back to thumbnail dims.
+    // Used by views to pre-size placeholder slots before the image loads.
+    var imageAspectRatio: Double? {
+        let imgW = w ?? tnW
+        let imgH = h ?? tnH
+        guard let imgW, let imgH, imgW > 0 else { return nil }
+        return Double(imgH) / Double(imgW)
     }
 
     /// Injected after decode — not part of API response
@@ -80,6 +93,7 @@ struct Post: Codable, Identifiable, Sendable {
         case posterID = "id"
         case tnW = "tn_w"
         case tnH = "tn_h"
+        case mobileImg = "m_img"
         case countryName = "country_name"
         case boardFlag = "board_flag"
     }

@@ -87,11 +87,15 @@ struct CatalogThreadRow: View {
             // Thumbnail
             if let url = thread.thumbnailURL(board: board) {
                 AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
+                    image.resizable().scaledToFit()
                 } placeholder: {
-                    Color.secondary.opacity(0.2)
+                    if let ratio = thread.imageAspectRatio {
+                        Color.secondary.opacity(0.2).frame(width: 80, height: 80 * ratio)
+                    } else {
+                        Color.secondary.opacity(0.2).frame(width: 80, height: 80)
+                    }
                 }
-                .frame(width: 80, height: 80)
+                .frame(width: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 RoundedRectangle(cornerRadius: 6)
