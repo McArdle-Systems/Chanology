@@ -79,9 +79,62 @@ actor ChanPostAPI {
         board: String,
         threadNo: Int,
         comment: String,
+        name: String? = nil,
+        options: String? = nil,
         imageData: Data? = nil,
         imageFilename: String? = nil,
         flag: String? = nil
+    ) async throws -> Int {
+        try await submitForm(
+            board: board,
+            threadNo: threadNo,
+            subject: nil,
+            name: name,
+            options: options,
+            comment: comment,
+            imageData: imageData,
+            imageFilename: imageFilename,
+            flag: flag
+        )
+    }
+
+    /// Submit a new top-level thread (OP) on a board.
+    /// Returns the new thread number on success.
+    @discardableResult
+    func submitNewThread(
+        board: String,
+        subject: String?,
+        name: String?,
+        options: String?,
+        comment: String,
+        imageData: Data,
+        imageFilename: String,
+        flag: String? = nil
+    ) async throws -> Int {
+        try await submitForm(
+            board: board,
+            threadNo: 0,
+            subject: subject,
+            name: name,
+            options: options,
+            comment: comment,
+            imageData: imageData,
+            imageFilename: imageFilename,
+            flag: flag
+        )
+    }
+
+    /// Internal multipart submission used by both reply and new-thread paths.
+    private func submitForm(
+        board: String,
+        threadNo: Int,
+        subject: String?,
+        name: String?,
+        options: String?,
+        comment: String,
+        imageData: Data?,
+        imageFilename: String?,
+        flag: String?
     ) async throws -> Int {
         // Re-auth if cookie expired
         try await reauthenticateIfNeeded()
@@ -102,12 +155,23 @@ actor ChanPostAPI {
         appendField(&body, boundary: boundary, name: "com", value: comment)
         appendField(&body, boundary: boundary, name: "mode", value: "regist")
 
+        // OP-only fields
+        if let subject, !subject.isEmpty {
+            appendField(&body, boundary: boundary, name: "sub", value: subject)
+        }
+        if let name, !name.isEmpty {
+            appendField(&body, boundary: boundary, name: "name", value: name)
+        }
+        if let options, !options.isEmpty {
+            appendField(&body, boundary: boundary, name: "email", value: options)
+        }
+
         // Optional meme flag
         if let flag {
             appendField(&body, boundary: boundary, name: "flag", value: flag)
         }
 
-        // Optional image attachment
+        // Optional image attachment (required for new threads, optional for replies)
         if let imageData, let filename = imageFilename {
             let mimeType = mimeTypeForFilename(filename)
             appendFile(&body, boundary: boundary, name: "upfile", filename: filename, mimeType: mimeType, data: imageData)
