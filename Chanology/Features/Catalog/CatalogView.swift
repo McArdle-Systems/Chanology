@@ -1,12 +1,23 @@
 import SwiftUI
 import SwiftData
 
+struct NewThreadTarget: Hashable {
+    let threadNo: Int
+    let subject: String
+}
+
 struct CatalogView: View {
     let board: Board
     @State private var service = ForegroundRefreshService.shared
     @State private var searchText: String = ""
     @State private var sortOrder: CatalogSortOrder = .bumpOrder
+    @State private var showCompose = false
+    @State private var showLogin = false
+    @State private var isAuthenticating = false
+    @State private var navigateToNewThread: NewThreadTarget?
     @Query private var watchedThreads: [WatchedThread]
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("catalogToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
 
     var body: some View {
         Group {
@@ -35,6 +46,9 @@ struct CatalogView: View {
         .navigationDestination(for: CatalogThread.self) { thread in
             ThreadView(board: board.board, threadNo: thread.no, subject: thread.decodedSubject ?? thread.plainTextComment ?? "Thread")
         }
+        .navigationDestination(item: $navigateToNewThread) { target in
+            ThreadView(board: board.board, threadNo: target.threadNo, subject: target.subject)
+        }
         .searchable(text: $searchText, prompt: "Search threads")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -56,6 +70,84 @@ struct CatalogView: View {
         } message: {
             Text(service.catalogError[board.board]?.localizedDescription ?? "")
         }
+        .overlay {
+            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
+        }
+        .sheet(isPresented: $showCompose) {
+            ComposeView(
+                board: board.board,
+                mode: .newThread,
+                onThreadCreated: { newThreadNo, subject, comment in
+                    await handleNewThreadCreated(threadNo: newThreadNo, subject: subject, comment: comment)
+                }
+            )
+        }
+        .sheet(isPresented: $showLogin) {
+            LoginView(onSuccess: {
+                showLogin = false
+                showCompose = true
+            })
+        }
+    }
+
+    private var floatingToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "new-thread",
+                icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
+                label: "New thread",
+                role: .prominent,
+                isEnabled: !isAuthenticating,
+                action: { triggerNewThread() }
+            )
+        ]
+    }
+
+    private func triggerNewThread() {
+        if ChanPostAPI.shared.isAuthenticated {
+            showCompose = true
+        } else {
+            Task {
+                isAuthenticating = true
+                do {
+                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                    showCompose = true
+                } catch {
+                    showLogin = true
+                }
+                isAuthenticating = false
+            }
+        }
+    }
+
+    /// Auto-watch the newly-created thread and navigate to it.
+    private func handleNewThreadCreated(threadNo: Int, subject: String, comment: String) async {
+        guard threadNo > 0 else { return }
+        let title = titleForNewThread(subject: subject, comment: comment, threadNo: threadNo)
+        if !watchedThreads.contains(where: { $0.board == board.board && $0.threadNo == threadNo }) {
+            let watched = WatchedThread(
+                board: board.board,
+                threadNo: threadNo,
+                subject: title,
+                lastSeenPostNo: threadNo
+            )
+            modelContext.insert(watched)
+        }
+        // Refresh catalog so the new OP shows up in the catalog list.
+        await service.fetchCatalog(board: board.board)
+        navigateToNewThread = NewThreadTarget(threadNo: threadNo, subject: title)
+    }
+
+    /// Build a display title from the user-typed subject/comment, falling back to "Thread #N".
+    private func titleForNewThread(subject: String, comment: String, threadNo: Int) -> String {
+        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedSubject.isEmpty { return trimmedSubject }
+        let trimmedComment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedComment.isEmpty {
+            let firstLine = trimmedComment.split(whereSeparator: { $0.isNewline }).first.map(String.init) ?? trimmedComment
+            return firstLine.count > 80 ? String(firstLine.prefix(80)) + "…" : firstLine
+        }
+        return "Thread #\(threadNo)"
     }
 
     private var filteredThreads: [CatalogThread] {
