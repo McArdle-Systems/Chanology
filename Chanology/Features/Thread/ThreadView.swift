@@ -379,15 +379,11 @@ struct ThreadView: View {
             highlightedPostNo = nil
             return
         }
-        let query = searchText.lowercased()
-        let newMatches = posts.compactMap { post -> Int? in
-            let inComment  = post.plainTextComment?.lowercased().contains(query) == true
-            let inSubject  = post.decodedSubject?.lowercased().contains(query) == true
-            let inName     = post.name?.lowercased().contains(query) == true
-            let inFilename = post.filename?.lowercased().contains(query) == true
-            let inID       = post.posterID?.lowercased().contains(query) == true
-            return (inComment || inSubject || inName || inFilename || inID) ? post.no : nil
-        }
+        let newMatches = ThreadSearchLogic.matches(
+            query: searchText,
+            posts: posts,
+            myPostNumbers: Set(myPostNumbers)
+        )
         searchMatches = newMatches
         currentMatchIndex = 0
         if !newMatches.isEmpty {
