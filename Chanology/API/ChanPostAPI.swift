@@ -148,37 +148,26 @@ actor ChanPostAPI {
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
-        var body = Data()
+        let attachment: PostFormBuilder.Attachment? = {
+            guard let imageData, let imageFilename else { return nil }
+            return PostFormBuilder.Attachment(
+                fieldName: "upfile",
+                filename: imageFilename,
+                mimeType: PostFormBuilder.mimeType(forFilename: imageFilename),
+                data: imageData
+            )
+        }()
 
-        // Required fields
-        appendField(&body, boundary: boundary, name: "resto", value: "\(threadNo)")
-        appendField(&body, boundary: boundary, name: "com", value: comment)
-        appendField(&body, boundary: boundary, name: "mode", value: "regist")
-
-        // OP-only fields
-        if let subject, !subject.isEmpty {
-            appendField(&body, boundary: boundary, name: "sub", value: subject)
-        }
-        if let name, !name.isEmpty {
-            appendField(&body, boundary: boundary, name: "name", value: name)
-        }
-        if let options, !options.isEmpty {
-            appendField(&body, boundary: boundary, name: "email", value: options)
-        }
-
-        // Optional meme flag
-        if let flag {
-            appendField(&body, boundary: boundary, name: "flag", value: flag)
-        }
-
-        // Optional image attachment (required for new threads, optional for replies)
-        if let imageData, let filename = imageFilename {
-            let mimeType = mimeTypeForFilename(filename)
-            appendFile(&body, boundary: boundary, name: "upfile", filename: filename, mimeType: mimeType, data: imageData)
-        }
-
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
+        request.httpBody = PostFormBuilder.buildBody(
+            boundary: boundary,
+            threadNo: threadNo,
+            comment: comment,
+            subject: subject,
+            name: name,
+            options: options,
+            flag: flag,
+            attachment: attachment
+        )
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -212,31 +201,6 @@ actor ChanPostAPI {
 
     private func urlEncode(_ string: String) -> String {
         string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? string
-    }
-
-    private func appendField(_ body: inout Data, boundary: String, name: String, value: String) {
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(value)\r\n".data(using: .utf8)!)
-    }
-
-    private func appendFile(_ body: inout Data, boundary: String, name: String, filename: String, mimeType: String, data: Data) {
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n".data(using: .utf8)!)
-    }
-
-    private func mimeTypeForFilename(_ filename: String) -> String {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        switch ext {
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "gif": return "image/gif"
-        case "webm": return "video/webm"
-        default: return "application/octet-stream"
-        }
     }
 }
 

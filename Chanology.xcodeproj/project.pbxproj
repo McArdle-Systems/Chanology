@@ -42,6 +42,11 @@
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
 		FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */; };
 		FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */; };
+		FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */; };
+		FAC52C3D2FDD1E7D00630C8F /* PostFormBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */; };
+		FAC52C3F2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */; };
+		FAC52C412FDD1EC700630C8F /* ComposeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */; };
+		FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +98,11 @@
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
 		FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogic.swift; sourceTree = "<group>"; };
 		FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogicTests.swift; sourceTree = "<group>"; };
+		FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilder.swift; sourceTree = "<group>"; };
+		FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormBuilder.swift; sourceTree = "<group>"; };
+		FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilderTests.swift; sourceTree = "<group>"; };
+		FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeModeTests.swift; sourceTree = "<group>"; };
+		FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormBuilderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -157,6 +167,8 @@
 				FA91B0742F64E3880098EC87 /* FlowLayout.swift */,
 				FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */,
 				FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */,
+				FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */,
+				FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -211,6 +223,9 @@
 				AA00000000000000000004 /* ModelTests.swift */,
 				AA00000000000000000005 /* ThreadRefreshLogicTests.swift */,
 				0BB4DD595F8E4A6FADD6F213 /* NotificationServiceTests.swift */,
+				FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */,
+				FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */,
+				FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */,
 			);
 			path = ChanologyTests;
 			sourceTree = "<group>";
@@ -384,11 +399,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA00000000000000000006 /* ReplyMapBuilderTests.swift in Sources */,
+				FAC52C3F2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift in Sources */,
 				AA00000000000000000007 /* PostHTMLRendererTests.swift in Sources */,
 				AA00000000000000000008 /* ModelTests.swift in Sources */,
 				AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */,
 				FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */,
+				FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */,
 				9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */,
+				FAC52C412FDD1EC700630C8F /* ComposeModeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -400,6 +418,7 @@
 				FA91B0752F64E3880098EC87 /* FlowLayout.swift in Sources */,
 				FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */,
 				47B8E459A68A0468840529B4 /* BackgroundRefreshHandler.swift in Sources */,
+				FAC52C3D2FDD1E7D00630C8F /* PostFormBuilder.swift in Sources */,
 				48F4C7A46A8E2E8F9C9E5F23 /* Board.swift in Sources */,
 				65CE33106A66F6825ACE6638 /* BoardsView.swift in Sources */,
 				FA91B07D2F64E3EA0098EC87 /* ComposeView.swift in Sources */,
@@ -408,6 +427,7 @@
 				FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */,
 				37771D00868A815A0E6C2C7D /* ChanAPI.swift in Sources */,
 				B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */,
+				FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */,
 				FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */,
 				C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */,
 				FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */,
