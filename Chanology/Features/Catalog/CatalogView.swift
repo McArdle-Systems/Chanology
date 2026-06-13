@@ -123,7 +123,7 @@ struct CatalogView: View {
     /// Auto-watch the newly-created thread and navigate to it.
     private func handleNewThreadCreated(threadNo: Int, subject: String, comment: String) async {
         guard threadNo > 0 else { return }
-        let title = titleForNewThread(subject: subject, comment: comment, threadNo: threadNo)
+        let title = NewThreadTitleBuilder.title(subject: subject, comment: comment, threadNo: threadNo)
         if !watchedThreads.contains(where: { $0.board == board.board && $0.threadNo == threadNo }) {
             let watched = WatchedThread(
                 board: board.board,
@@ -136,18 +136,6 @@ struct CatalogView: View {
         // Refresh catalog so the new OP shows up in the catalog list.
         await service.fetchCatalog(board: board.board)
         navigateToNewThread = NewThreadTarget(threadNo: threadNo, subject: title)
-    }
-
-    /// Build a display title from the user-typed subject/comment, falling back to "Thread #N".
-    private func titleForNewThread(subject: String, comment: String, threadNo: Int) -> String {
-        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedSubject.isEmpty { return trimmedSubject }
-        let trimmedComment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedComment.isEmpty {
-            let firstLine = trimmedComment.split(whereSeparator: { $0.isNewline }).first.map(String.init) ?? trimmedComment
-            return firstLine.count > 80 ? String(firstLine.prefix(80)) + "…" : firstLine
-        }
-        return "Thread #\(threadNo)"
     }
 
     private var filteredThreads: [CatalogThread] {
