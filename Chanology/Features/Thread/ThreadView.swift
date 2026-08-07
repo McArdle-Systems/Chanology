@@ -495,6 +495,8 @@ struct ThreadView: View {
             post: post,
             replyingPosts: replyMap[post.no] ?? [],
             isQuoteSelected: selectedQuotes.contains(post.no),
+            opNo: posts.first?.no,
+            opPosterID: posts.first?.posterID,
             myPostNumbers: myPostNumbers,
             posterPostCounts: posterPostCounts,
             searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
@@ -773,6 +775,8 @@ struct PostView: View {
     let post: Post
     var replyingPosts: [Int] = []
     var isQuoteSelected: Bool = false
+    var opNo: Int? = nil
+    var opPosterID: String? = nil
     var myPostNumbers: [Int] = []
     var posterPostCounts: [String: Int] = [:]
     var searchQuery: String? = nil
@@ -846,6 +850,12 @@ struct PostView: View {
                                     .zIndex(100)
                             }
                         }
+                    if id == opPosterID {
+                        Text("(OP)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.orange)
+                    }
                 }
                 // Country flag (emoji)
                 if let emoji = post.countryEmoji {
@@ -959,7 +969,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery, onSelectionChange: onSelectionChange) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, opNo: opNo, searchQuery: searchQuery, onSelectionChange: onSelectionChange) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)
@@ -1464,8 +1474,8 @@ private func mockPost(
             subject: "Post your desktop / tech setups.",
             mockPosts: [
                 mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Post your desktop / tech setups.", closed: 1, archived: 1),
-                mockPost(no: 12346, com: "Nice setup anon", resto: 12345),
-                mockPost(no: 12347, com: "Thread archived, RIP", resto: 12345),
+                mockPost(no: 12346, com: ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>Nice setup anon"##, resto: 12345),
+                mockPost(no: 12347, com: "Thread archived, RIP", id: "qR7mZp", resto: 12345),
             ],
         )
     }
@@ -1582,6 +1592,41 @@ private func mockPost(
     let post = mockPost(no: 11111, com: "Just posted this myself.", resto: 99999)
     return PostView(post: post, myPostNumbers: [11111])
         .padding()
+}
+
+#Preview("Post — OP's ID tagged (OP)") {
+    VStack(spacing: 0) {
+        PostView(post: mockPost(no: 99999, com: "Post your desktops and rate others.", id: "xKz9aB", resto: 0), opPosterID: "xKz9aB")
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(no: 11112, com: "Nice setup anon", id: "xKz9aB", resto: 99999), opPosterID: "xKz9aB")
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(no: 11113, com: "Different poster here", id: "qR7mZp", resto: 99999), opPosterID: "xKz9aB")
+    }
+    .padding()
+}
+
+#Preview("Post — (OP) and (You) markers") {
+    VStack(spacing: 0) {
+        PostView(
+            post: mockPost(
+                no: 11112,
+                com: ##"<a href="#p99999" class="quotelink">&gt;&gt;99999</a><br>Nice thread OP"##,
+                resto: 99999
+            ),
+            opNo: 99999
+        )
+        Divider().padding(.leading, 16)
+        PostView(
+            post: mockPost(
+                no: 11113,
+                com: ##"<a href="#p99999" class="quotelink">&gt;&gt;99999</a><br>Wait, that's my own thread"##,
+                resto: 99999
+            ),
+            opNo: 99999,
+            myPostNumbers: [99999]
+        )
+    }
+    .padding()
 }
 
 #Preview("Post — bare URLs (real API format)") {

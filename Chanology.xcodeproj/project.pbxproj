@@ -47,6 +47,8 @@
 		FAC52C3F2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */; };
 		FAC52C412FDD1EC700630C8F /* ComposeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */; };
 		FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */; };
+		4BC94D306EBD0946BEAE34E4 /* WatchListGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 248D358BE9B51BB8CE512FF3 /* WatchListGrouping.swift */; };
+		AA09C56FB7AB6F20D5EC1AB9 /* WatchListGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D813BFCCBC638B67CCB15F3 /* WatchListGroupingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,6 +105,8 @@
 		FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilderTests.swift; sourceTree = "<group>"; };
 		FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeModeTests.swift; sourceTree = "<group>"; };
 		FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormBuilderTests.swift; sourceTree = "<group>"; };
+		248D358BE9B51BB8CE512FF3 /* WatchListGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchListGrouping.swift; sourceTree = "<group>"; };
+		2D813BFCCBC638B67CCB15F3 /* WatchListGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchListGroupingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -169,6 +173,7 @@
 				FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */,
 				FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */,
 				FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */,
+				248D358BE9B51BB8CE512FF3 /* WatchListGrouping.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -226,6 +231,7 @@
 				FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */,
 				FAC52C402FDD1EC700630C8F /* ComposeModeTests.swift */,
 				FAC52C422FDD1EE600630C8F /* PostFormBuilderTests.swift */,
+				2D813BFCCBC638B67CCB15F3 /* WatchListGroupingTests.swift */,
 			);
 			path = ChanologyTests;
 			sourceTree = "<group>";
@@ -407,6 +413,7 @@
 				FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */,
 				9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */,
 				FAC52C412FDD1EC700630C8F /* ComposeModeTests.swift in Sources */,
+				AA09C56FB7AB6F20D5EC1AB9 /* WatchListGroupingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -442,6 +449,7 @@
 				FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */,
 				BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */,
 				FA00000000000000000001 /* SelectablePostText.swift in Sources */,
+				4BC94D306EBD0946BEAE34E4 /* WatchListGrouping.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

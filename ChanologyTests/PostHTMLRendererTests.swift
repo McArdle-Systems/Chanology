@@ -279,3 +279,23 @@ import UIKit
     let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [99])
     #expect(result.string == ">>42")
 }
+
+// MARK: - (OP) markers
+
+@Test func renderNS_opMarker_appendedAfterQuotelinkToOP() {
+    let html = ##"<a href="#p100" class="quotelink">&gt;&gt;100</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, opNo: 100)
+    #expect(result.string == ">>100 (OP)")
+}
+
+@Test func renderNS_opMarker_notAppendedForNonOPPosts() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, opNo: 100)
+    #expect(result.string == ">>42")
+}
+
+@Test func renderNS_opAndYouMarkers_bothAppendedWhenQuotedPostIsBoth() {
+    let html = ##"<a href="#p100" class="quotelink">&gt;&gt;100</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [100], opNo: 100)
+    #expect(result.string == ">>100 (OP) (You)")
+}
