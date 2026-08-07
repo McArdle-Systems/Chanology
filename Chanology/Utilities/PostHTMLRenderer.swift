@@ -133,7 +133,7 @@ enum PostHTMLRenderer {
 
     // MARK: - UIKit rendering (for UITextView-based selection)
 
-    static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], tintColor: UIColor = .systemBlue) -> NSAttributedString {
+    static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], opNo: Int? = nil, tintColor: UIColor = .systemBlue) -> NSAttributedString {
         let html = html.replacingOccurrences(of: "<wbr>", with: "")
         let result = NSMutableAttributedString()
         var styleStack: [UIKitStyle] = [UIKitStyle()]
@@ -218,8 +218,8 @@ enum PostHTMLRenderer {
             }
         }
 
-        if !myPostNumbers.isEmpty {
-            appendYouMarkersNS(to: result, myPostNumbers: Set(myPostNumbers))
+        if !myPostNumbers.isEmpty || opNo != nil {
+            appendReferenceMarkersNS(to: result, myPostNumbers: Set(myPostNumbers), opNo: opNo)
         }
 
         return result
@@ -250,18 +250,25 @@ enum PostHTMLRenderer {
         }
     }
 
-    private static func appendYouMarkersNS(to result: NSMutableAttributedString, myPostNumbers: Set<Int>) {
+    /// Inserts " (OP)" and/or " (You)" after quotelinks (`>>N`) that reference the thread's
+    /// OP post or one of the user's own posts, mirroring the website's reply markers.
+    private static func appendReferenceMarkersNS(to result: NSMutableAttributedString, myPostNumbers: Set<Int>, opNo: Int?) {
         var insertions: [(Int, NSAttributedString)] = []
         result.enumerateAttribute(.link, in: NSRange(location: 0, length: result.length)) { value, range, _ in
             guard let url = value as? URL,
                   url.scheme == "chanology", url.host() == "post",
-                  let postNo = Int(url.lastPathComponent),
-                  myPostNumbers.contains(postNo) else { return }
-            let you = NSAttributedString(string: " (You)", attributes: [
+                  let postNo = Int(url.lastPathComponent) else { return }
+
+            var marker = ""
+            if let opNo, postNo == opNo { marker += " (OP)" }
+            if myPostNumbers.contains(postNo) { marker += " (You)" }
+            guard !marker.isEmpty else { return }
+
+            let attributed = NSAttributedString(string: marker, attributes: [
                 .foregroundColor: UIColor.systemOrange,
                 .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold)
             ])
-            insertions.append((range.upperBound, you))
+            insertions.append((range.upperBound, attributed))
         }
         for (location, str) in insertions.reversed() {
             result.insert(str, at: location)
