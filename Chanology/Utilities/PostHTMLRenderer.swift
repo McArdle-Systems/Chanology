@@ -272,22 +272,29 @@ enum PostHTMLRenderer {
     /// OP post or one of the user's own posts, mirroring the website's reply markers.
     private static func appendReferenceMarkersNS(to result: NSMutableAttributedString, myPostNumbers: Set<Int>, opNo: Int?) {
         var insertions: [(Int, NSAttributedString)] = []
+        let font = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold)
         result.enumerateAttribute(.link, in: NSRange(location: 0, length: result.length)) { value, range, _ in
             guard let url = value as? URL,
                   url.scheme == "chanology", url.host() == "post",
                   let postNo = Int(url.lastPathComponent) else { return }
 
-            var marker = ""
-            if let opNo, postNo == opNo { marker += " (OP)" }
-            if myPostNumbers.contains(postNo) { marker += " (You)" }
-            guard !marker.isEmpty else { return }
-
-            let attributed = NSAttributedString(string: marker, attributes: [
-                .foregroundColor: UIColor.systemOrange,
-                .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold),
-                referenceMarkerAttributeKey: true
-            ])
-            insertions.append((range.upperBound, attributed))
+            let combined = NSMutableAttributedString()
+            if let opNo, postNo == opNo {
+                combined.append(NSAttributedString(string: " (OP)", attributes: [
+                    .foregroundColor: PostMarkerColor.op,
+                    .font: font,
+                    referenceMarkerAttributeKey: true
+                ]))
+            }
+            if myPostNumbers.contains(postNo) {
+                combined.append(NSAttributedString(string: " (You)", attributes: [
+                    .foregroundColor: PostMarkerColor.you,
+                    .font: font,
+                    referenceMarkerAttributeKey: true
+                ]))
+            }
+            guard combined.length > 0 else { return }
+            insertions.append((range.upperBound, combined))
         }
         for (location, str) in insertions.reversed() {
             result.insert(str, at: location)
