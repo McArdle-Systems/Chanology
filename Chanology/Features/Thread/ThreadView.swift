@@ -256,7 +256,7 @@ struct ThreadView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: searchIsOpen)
         .onChange(of: searchText) { _, _ in updateSearchMatches() }
-        .sheet(isPresented: $showCompose, onDismiss: { quotedSnippet = nil }) {
+        .sheet(isPresented: $showCompose) {
             ComposeView(
                 board: board,
                 threadNo: threadNo,
@@ -264,6 +264,7 @@ struct ThreadView: View {
                 quotedSnippet: quotedSnippet,
                 onPosted: { newPostNo in
                     selectedQuotes.removeAll()
+                    quotedSnippet = nil
                     // Track our post for (You) indicators
                     if let record = myPostsRecord {
                         record.addPost(newPostNo)
@@ -325,8 +326,6 @@ struct ThreadView: View {
             if let postNo = pendingQuotePostNo, !selectedQuotes.contains(postNo) {
                 selectedQuotes.insert(postNo, at: 0)
             }
-        } else {
-            quotedSnippet = nil
         }
         pendingQuoteText = nil
         pendingQuotePostNo = nil
@@ -518,13 +517,9 @@ struct ThreadView: View {
                 }
             },
             onQuote: { selected in
-                quotedSnippet = selected
-                if !selectedQuotes.contains(post.no) {
-                    selectedQuotes.insert(post.no, at: 0)
-                }
-                DispatchQueue.main.async {
-                    showCompose = true
-                }
+                pendingQuoteText = selected
+                pendingQuotePostNo = post.no
+                triggerCompose()
             },
             onSelectionChange: { text in
                 pendingQuoteText = text
@@ -1417,6 +1412,20 @@ struct AnimatedImageView: UIViewRepresentable {
 
 // MARK: - Previews
 
+/// Seeds a fake pass_id cookie so `ChanPostAPI.shared.isAuthenticated` reads
+/// true in the preview canvas — without it, tapping Quote/Reply falls through
+/// to the login sheet instead of opening the composer.
+private func mockAuthenticatedForPreview() {
+    guard let url = URL(string: "https://sys.4chan.org"),
+          let cookie = HTTPCookie(properties: [
+            .domain: "sys.4chan.org",
+            .path: "/",
+            .name: "pass_id",
+            .value: "preview-mock-pass-id"
+          ]) else { return }
+    HTTPCookieStorage.shared.setCookies([cookie], for: url, mainDocumentURL: nil)
+}
+
 private func mockPost(
     no: Int = 99999,
     com: String = ##"<span class="quote">&gt;be me</span><br>&gt;write Swift code all day<br><a href="#p12344" class="quotelink">&gt;&gt;12344</a><br>genuinely enjoying it &#039;desu"##,
@@ -1444,7 +1453,8 @@ private func mockPost(
 }
 
 #Preview("Thread") {
-    NavigationStack {
+    mockAuthenticatedForPreview()
+    return NavigationStack {
         ThreadView(
             board: "g",
             threadNo: 12345,
@@ -1466,6 +1476,7 @@ private func mockPost(
     watched.isClosed = true
     watched.isArchived = true
     container.mainContext.insert(watched)
+    mockAuthenticatedForPreview()
 
     return NavigationStack {
         ThreadView(
