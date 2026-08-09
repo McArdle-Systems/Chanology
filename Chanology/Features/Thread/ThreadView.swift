@@ -531,12 +531,12 @@ struct ThreadView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
                     isPosterHighlighted ? Color.yellow :
-                    isUserReply ? Color.orange : Color.accentColor,
+                    isUserReply ? Color(uiColor: PostMarkerColor.you) : Color.accentColor,
                     lineWidth: isPosterHighlighted ? 2 : (isUserReply ? 1.5 : 2)
                 )
                 .shadow(
                     color: isPosterHighlighted ? Color.yellow.opacity(0.5) :
-                           isUserReply ? Color.orange.opacity(0.5) : Color.accentColor.opacity(0.6),
+                           isUserReply ? Color(uiColor: PostMarkerColor.you).opacity(0.5) : Color.accentColor.opacity(0.6),
                     radius: isHighlighted ? 8 : (isPosterHighlighted ? 6 : (isUserReply ? 6 : 0))
                 )
                 .opacity(isHighlighted || isUserReply || isPosterHighlighted ? 1 : 0)
@@ -849,7 +849,7 @@ struct PostView: View {
                         Text("(OP)")
                             .font(.caption2)
                             .fontWeight(.bold)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color(uiColor: PostMarkerColor.op))
                     }
                 }
                 // Country flag (emoji)
@@ -871,7 +871,7 @@ struct PostView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor, in: Capsule())
+                        .background(Color(uiColor: PostMarkerColor.you), in: Capsule())
                 }
                 Spacer()
                 // Tappable post number for quoting
@@ -993,13 +993,13 @@ struct PostView: View {
                                     Text("(You)")
                                         .font(.caption2.monospaced())
                                         .fontWeight(.semibold)
-                                        .foregroundStyle(Color.orange)
+                                        .foregroundStyle(Color(uiColor: PostMarkerColor.you))
                                 }
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
-                                (isYou ? Color.orange : Color.accentColor).opacity(0.12),
+                                (isYou ? Color(uiColor: PostMarkerColor.you) : Color.accentColor).opacity(0.12),
                                 in: Capsule()
                             )
                         }
