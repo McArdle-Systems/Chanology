@@ -299,3 +299,29 @@ import UIKit
     let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [100], opNo: 100)
     #expect(result.string == ">>100 (OP) (You)")
 }
+
+// MARK: - plainText(from:in:) excludes reference markers
+
+@Test func plainText_excludesYouMarkerFromSelection() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a> nice post"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [42])
+    #expect(result.string == ">>42 (You) nice post")
+    let range = NSRange(location: 0, length: result.length)
+    #expect(PostHTMLRenderer.plainText(from: result, in: range) == ">>42 nice post")
+}
+
+@Test func plainText_excludesOPMarkerFromSelection() {
+    let html = ##"<a href="#p100" class="quotelink">&gt;&gt;100</a> agreed"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, opNo: 100)
+    let range = NSRange(location: 0, length: result.length)
+    #expect(PostHTMLRenderer.plainText(from: result, in: range) == ">>100 agreed")
+}
+
+@Test func plainText_partialRangeInsideMarkerIsExcluded() {
+    let html = ##"<a href="#p42" class="quotelink">&gt;&gt;42</a>"##
+    let result = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [42])
+    #expect(result.string == ">>42 (You)")
+    // Select the whole run, including the marker — marker text should be dropped.
+    let range = NSRange(location: 0, length: result.length)
+    #expect(PostHTMLRenderer.plainText(from: result, in: range) == ">>42")
+}

@@ -73,10 +73,14 @@ struct SelectablePostText: UIViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
-            guard let range = textView.selectedTextRange,
-                  !range.isEmpty,
-                  let text = textView.text(in: range),
-                  !text.isEmpty else {
+            let range = textView.selectedRange
+            guard range.length > 0,
+                  let attributedText = textView.attributedText else {
+                onSelectionChange?(nil)
+                return
+            }
+            let text = PostHTMLRenderer.plainText(from: attributedText, in: range)
+            guard !text.isEmpty else {
                 onSelectionChange?(nil)
                 return
             }
@@ -100,11 +104,18 @@ class QuotableTextView: UITextView {
     /// Injects a "Quote" action at the top of the text selection menu (iOS 16+).
     override func editMenu(for textRange: UITextRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
         var actions = suggestedActions
-        if let selected = text(in: textRange), !selected.isEmpty {
-            let quote = UIAction(title: "Quote", image: UIImage(systemName: "quote.opening")) { [weak self] _ in
-                self?.onQuote?(selected.string)
+        let nsRange = NSRange(
+            location: offset(from: beginningOfDocument, to: textRange.start),
+            length: offset(from: textRange.start, to: textRange.end)
+        )
+        if let attributedText {
+            let selected = PostHTMLRenderer.plainText(from: attributedText, in: nsRange)
+            if !selected.isEmpty {
+                let quote = UIAction(title: "Quote", image: UIImage(systemName: "quote.opening")) { [weak self] _ in
+                    self?.onQuote?(selected)
+                }
+                actions.insert(quote, at: 0)
             }
-            actions.insert(quote, at: 0)
         }
         return UIMenu(children: actions)
     }

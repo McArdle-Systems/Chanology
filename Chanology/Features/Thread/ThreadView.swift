@@ -518,13 +518,9 @@ struct ThreadView: View {
                 }
             },
             onQuote: { selected in
-                quotedSnippet = selected
-                if !selectedQuotes.contains(post.no) {
-                    selectedQuotes.insert(post.no, at: 0)
-                }
-                DispatchQueue.main.async {
-                    showCompose = true
-                }
+                pendingQuoteText = selected
+                pendingQuotePostNo = post.no
+                triggerCompose()
             },
             onSelectionChange: { text in
                 pendingQuoteText = text

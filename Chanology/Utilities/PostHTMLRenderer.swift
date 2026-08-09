@@ -3,6 +3,24 @@ import UIKit
 
 enum PostHTMLRenderer {
 
+    /// Marks decorative " (OP)"/" (You)" reference-marker runs appended by
+    /// `appendReferenceMarkersNS` so callers can exclude them when deriving
+    /// plain text from a rendered attributed string (e.g. for quoting).
+    static let referenceMarkerAttributeKey = NSAttributedString.Key("chanology.referenceMarker")
+
+    /// Plain text for `range` in `attributed`, skipping any reference-marker
+    /// runs so quoted/copied text doesn't pick up UI-only " (OP)"/" (You)" tags.
+    static func plainText(from attributed: NSAttributedString, in range: NSRange) -> String {
+        guard range.length > 0, range.location != NSNotFound, NSMaxRange(range) <= attributed.length else { return "" }
+        let sub = attributed.attributedSubstring(from: range)
+        var out = ""
+        sub.enumerateAttribute(referenceMarkerAttributeKey, in: NSRange(location: 0, length: sub.length)) { value, subRange, _ in
+            guard value == nil else { return }
+            out += (sub.string as NSString).substring(with: subRange)
+        }
+        return out
+    }
+
     // MARK: - Public
 
     /// Plain text with entities decoded — used for catalog previews and notifications.
@@ -266,7 +284,8 @@ enum PostHTMLRenderer {
 
             let attributed = NSAttributedString(string: marker, attributes: [
                 .foregroundColor: UIColor.systemOrange,
-                .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold)
+                .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .bold),
+                referenceMarkerAttributeKey: true
             ])
             insertions.append((range.upperBound, attributed))
         }
