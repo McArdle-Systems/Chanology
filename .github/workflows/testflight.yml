@@ -19,7 +19,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, macOS]
     environment: PROD
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 

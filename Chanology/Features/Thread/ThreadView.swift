@@ -34,6 +34,8 @@ struct ThreadView: View {
     @State private var quotedSnippet: String? = nil
     @State private var isAuthenticating = false
     @State private var showArchivedToast = false
+    @State private var pendingQuoteText: String? = nil
+    @State private var pendingQuotePostNo: Int? = nil
     @State private var visiblePosts: Set<Int> = []
     @State private var lastKnownPostCount: Int = 0
     @Query private var watchedThreads: [WatchedThread]
@@ -226,7 +228,7 @@ struct ThreadView: View {
         }
         .overlay(alignment: .bottom) {
             if showArchivedToast {
-                Text("This thread has been archived and can no longer be replied to.")
+                Text("This thread is closed and can no longer be replied to.")
                     .font(.subheadline)
                     .padding()
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -288,7 +290,7 @@ struct ThreadView: View {
 
     private var isThreadClosed: Bool {
         guard let op = posts.first else { return false }
-        return (op.closed ?? 0) != 0 || (op.archived ?? 0) != 0
+        return (op.closed ?? 0) != 0
     }
 
     private func triggerCompose() {
@@ -298,21 +300,36 @@ struct ThreadView: View {
                 try? await Task.sleep(for: .seconds(2))
                 showArchivedToast = false
             }
-        } else if ChanPostAPI.shared.isAuthenticated {
-            showCompose = true
         } else {
-            Task {
-                isAuthenticating = true
-                do {
-                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
-                    quotedSnippet = nil
-                    showCompose = true
-                } catch {
-                    showLogin = true
+            applyPendingQuote()
+            if ChanPostAPI.shared.isAuthenticated {
+                showCompose = true
+            } else {
+                Task {
+                    isAuthenticating = true
+                    do {
+                        try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                        showCompose = true
+                    } catch {
+                        showLogin = true
+                    }
+                    isAuthenticating = false
                 }
-                isAuthenticating = false
             }
         }
+    }
+
+    private func applyPendingQuote() {
+        if let text = pendingQuoteText {
+            quotedSnippet = text
+            if let postNo = pendingQuotePostNo, !selectedQuotes.contains(postNo) {
+                selectedQuotes.insert(postNo, at: 0)
+            }
+        } else {
+            quotedSnippet = nil
+        }
+        pendingQuoteText = nil
+        pendingQuotePostNo = nil
     }
 
     private func scrollToTop() {
@@ -362,12 +379,11 @@ struct ThreadView: View {
             highlightedPostNo = nil
             return
         }
-        let query = searchText.lowercased()
-        let newMatches = posts.compactMap { post -> Int? in
-            let inComment = post.plainTextComment?.lowercased().contains(query) == true
-            let inSubject = post.decodedSubject?.lowercased().contains(query) == true
-            return (inComment || inSubject) ? post.no : nil
-        }
+        let newMatches = ThreadSearchLogic.matches(
+            query: searchText,
+            posts: posts,
+            myPostNumbers: Set(myPostNumbers)
+        )
         searchMatches = newMatches
         currentMatchIndex = 0
         if !newMatches.isEmpty {
@@ -391,7 +407,7 @@ struct ThreadView: View {
         guard currentMatchIndex < searchMatches.count else { return }
         let postNo = searchMatches[currentMatchIndex]
         highlightedPostNo = nil
-        scrollToTarget(AnyHashable(postNo), anchor: .center)
+        scrollToTarget(AnyHashable(postNo), anchor: .top)
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))
             withAnimation(.easeIn(duration: 0.2)) {
@@ -419,13 +435,14 @@ struct ThreadView: View {
                 id: "watch",
                 icon: isWatched ? "bell.fill" : "bell",
                 label: isWatched ? "Stop watching" : "Watch thread",
+                role: isThreadClosed ? .muted : (isWatched ? .prominent : .standard),
                 action: { toggleWatch() }
             ),
             ToolbarAction(
                 id: "reply",
                 icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
                 label: isThreadClosed ? "Thread archived" : "Reply",
-                role: isThreadClosed ? .standard : .prominent,
+                role: isThreadClosed ? .muted : .prominent,
                 isEnabled: !isAuthenticating,
                 showSlash: isThreadClosed,
                 badge: (selectedQuotes.isEmpty || isThreadClosed) ? nil : "\(selectedQuotes.count)",
@@ -478,6 +495,8 @@ struct ThreadView: View {
             post: post,
             replyingPosts: replyMap[post.no] ?? [],
             isQuoteSelected: selectedQuotes.contains(post.no),
+            opNo: posts.first?.no,
+            opPosterID: posts.first?.posterID,
             myPostNumbers: myPostNumbers,
             posterPostCounts: posterPostCounts,
             searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
@@ -500,9 +519,16 @@ struct ThreadView: View {
             },
             onQuote: { selected in
                 quotedSnippet = selected
+                if !selectedQuotes.contains(post.no) {
+                    selectedQuotes.insert(post.no, at: 0)
+                }
                 DispatchQueue.main.async {
                     showCompose = true
                 }
+            },
+            onSelectionChange: { text in
+                pendingQuoteText = text
+                pendingQuotePostNo = text != nil ? post.no : nil
             }
         )
         .id(post.no)
@@ -590,6 +616,14 @@ struct ThreadView: View {
     }
 
     private func toggleWatch() {
+        if isThreadClosed, !watchedThreads.contains(where: { $0.board == board && $0.threadNo == threadNo }) {
+            showArchivedToast = true
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                showArchivedToast = false
+            }
+            return
+        }
         if let existing = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }) {
             modelContext.delete(existing)
         } else {
@@ -599,6 +633,8 @@ struct ThreadView: View {
                 subject: subject,
                 lastSeenPostNo: posts.last?.no ?? 0
             )
+            watched.isClosed = isThreadClosed
+        watched.isArchived = (posts.first?.archived ?? 0) != 0
             modelContext.insert(watched)
         }
     }
@@ -633,6 +669,9 @@ struct ThreadView: View {
                 watched.lastChecked = Date()
             }
         }
+
+        watched.isClosed = isThreadClosed
+        watched.isArchived = (posts.first?.archived ?? 0) != 0
     }
 
     /// Called when the background poller updates posts for this thread
@@ -736,6 +775,8 @@ struct PostView: View {
     let post: Post
     var replyingPosts: [Int] = []
     var isQuoteSelected: Bool = false
+    var opNo: Int? = nil
+    var opPosterID: String? = nil
     var myPostNumbers: [Int] = []
     var posterPostCounts: [String: Int] = [:]
     var searchQuery: String? = nil
@@ -743,27 +784,43 @@ struct PostView: View {
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
     var onQuote: ((String) -> Void)?
+    var onSelectionChange: ((String?) -> Void)?
 
     @Environment(\.openURL) private var openURL
     @State private var showPosterPostCount = false
+
+    private func highlighted(_ string: String, foreground: Color) -> Text {
+        var attributed = AttributedString(string)
+        attributed.foregroundColor = foreground
+        guard let query = searchQuery, !query.isEmpty else { return Text(attributed) }
+        let ns = string as NSString
+        var searchRange = NSRange(location: 0, length: ns.length)
+        while searchRange.location < ns.length {
+            let found = ns.range(of: query, options: .caseInsensitive, range: searchRange)
+            guard found.location != NSNotFound, let strRange = Range(found, in: string) else { break }
+            let lo = attributed.index(attributed.startIndex, offsetByCharacters: string.distance(from: string.startIndex, to: strRange.lowerBound))
+            let hi = attributed.index(attributed.startIndex, offsetByCharacters: string.distance(from: string.startIndex, to: strRange.upperBound))
+            attributed[lo..<hi].backgroundColor = Color.yellow.opacity(0.5)
+            searchRange = NSRange(location: NSMaxRange(found), length: ns.length - NSMaxRange(found))
+        }
+        return Text(attributed)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack(spacing: 6) {
-                Text(post.name ?? "Anonymous")
+                highlighted(post.name ?? "Anonymous", foreground: .green)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.green)
                 if let trip = post.trip {
                     Text(trip)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 if let id = post.posterID {
-                    Text("ID:\(id)")
+                    highlighted("ID:\(id)", foreground: .white)
                         .font(.caption2)
-                        .foregroundStyle(.white)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.gray.opacity(0.5), in: Capsule())
@@ -793,6 +850,12 @@ struct PostView: View {
                                     .zIndex(100)
                             }
                         }
+                    if id == opPosterID {
+                        Text("(OP)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.orange)
+                    }
                 }
                 // Country flag (emoji)
                 if let emoji = post.countryEmoji {
@@ -805,6 +868,15 @@ struct PostView: View {
                     AnimatedImageView(url: flagURL)
                         .frame(height: 12)
                         .help(post.flagName ?? "")
+                }
+                if myPostNumbers.contains(post.no) {
+                    Text("(You)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor, in: Capsule())
                 }
                 Spacer()
                 // Tappable post number for quoting
@@ -835,8 +907,12 @@ struct PostView: View {
                                 AsyncImage(url: thumbURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    Color.secondary.opacity(0.2)
-                                        .frame(height: 120)
+                                    if let ratio = post.imageAspectRatio {
+                                        let w = min(CGFloat(post.tnW ?? 260), 260)
+                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                                    } else {
+                                        Color.secondary.opacity(0.2).frame(height: 120)
+                                    }
                                 }
                             }
                             Image(systemName: "play.circle.fill")
@@ -854,17 +930,26 @@ struct PostView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .onTapGesture { onImageTap?(url) }
                     } else {
-                        // Static Image
-                        AsyncImage(url: url) { image in
+                        // Static Image — use mobile-optimized version when available
+                        AsyncImage(url: post.mobileImageURL ?? url) { image in
                             image.resizable().scaledToFit()
                         } placeholder: {
                             if let thumbURL = post.thumbnailURL {
                                 AsyncImage(url: thumbURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    Color.secondary.opacity(0.2)
-                                        .frame(height: 120)
+                                    if let ratio = post.imageAspectRatio {
+                                        let w = min(CGFloat(post.tnW ?? 260), 260)
+                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                                    } else {
+                                        Color.secondary.opacity(0.2).frame(height: 120)
+                                    }
                                 }
+                            } else if let ratio = post.imageAspectRatio {
+                                let w = min(CGFloat(post.tnW ?? 260), 260)
+                                Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
+                            } else {
+                                Color.secondary.opacity(0.2).frame(height: 120)
                             }
                         }
                         .frame(maxWidth: 260)
@@ -874,9 +959,8 @@ struct PostView: View {
 
                     // Filename display
                     if let filename = post.filename, let ext = post.ext {
-                        Text("\(filename)\(ext)")
+                        highlighted("\(filename)\(ext)", foreground: Color(UIColor.secondaryLabel))
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
@@ -885,7 +969,7 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers, searchQuery: searchQuery) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, opNo: opNo, searchQuery: searchQuery, onSelectionChange: onSelectionChange) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)
@@ -1194,6 +1278,10 @@ struct VideoPlayerView: View {
 struct WebMPlayerView: UIViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
@@ -1208,6 +1296,9 @@ struct WebMPlayerView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedURL != url else { return }
+        context.coordinator.loadedURL = url
+
         let html = """
         <!DOCTYPE html>
         <html>
@@ -1253,6 +1344,10 @@ struct WebMPlayerView: UIViewRepresentable {
         """
 
         webView.loadHTMLString(html, baseURL: nil)
+    }
+
+    class Coordinator {
+        var loadedURL: URL?
     }
 }
 
@@ -1364,20 +1459,27 @@ private func mockPost(
     .modelContainer(for: WatchedThread.self, inMemory: true)
 }
 
-#Preview("Thread — Archived") {
-    NavigationStack {
+#Preview("Thread — Archived & Watched") {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: WatchedThread.self, configurations: config)
+    let watched = WatchedThread(board: "g", threadNo: 12345, subject: "Post your desktop / tech setups.", lastSeenPostNo: 12347)
+    watched.isClosed = true
+    watched.isArchived = true
+    container.mainContext.insert(watched)
+
+    return NavigationStack {
         ThreadView(
             board: "g",
             threadNo: 12345,
             subject: "Post your desktop / tech setups.",
             mockPosts: [
                 mockPost(no: 12345, com: "Post your desktops and rate others. I&#039;ll start.", resto: 0, sub: "Post your desktop / tech setups.", closed: 1, archived: 1),
-                mockPost(no: 12346, com: "Nice setup anon", resto: 12345),
-                mockPost(no: 12347, com: "Thread archived, RIP", resto: 12345),
-            ]
+                mockPost(no: 12346, com: ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>Nice setup anon"##, resto: 12345),
+                mockPost(no: 12347, com: "Thread archived, RIP", id: "qR7mZp", resto: 12345),
+            ],
         )
     }
-    .modelContainer(for: WatchedThread.self, inMemory: true)
+    .modelContainer(container)
 }
 
 #Preview("New Replies Marker") {
@@ -1484,6 +1586,47 @@ private func mockPost(
     p._board = "g"
     return PostView(post: p)
         .padding()
+}
+
+#Preview("Post — (You)") {
+    let post = mockPost(no: 11111, com: "Just posted this myself.", resto: 99999)
+    return PostView(post: post, myPostNumbers: [11111])
+        .padding()
+}
+
+#Preview("Post — OP's ID tagged (OP)") {
+    VStack(spacing: 0) {
+        PostView(post: mockPost(no: 99999, com: "Post your desktops and rate others.", id: "xKz9aB", resto: 0), opPosterID: "xKz9aB")
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(no: 11112, com: "Nice setup anon", id: "xKz9aB", resto: 99999), opPosterID: "xKz9aB")
+        Divider().padding(.leading, 16)
+        PostView(post: mockPost(no: 11113, com: "Different poster here", id: "qR7mZp", resto: 99999), opPosterID: "xKz9aB")
+    }
+    .padding()
+}
+
+#Preview("Post — (OP) and (You) markers") {
+    VStack(spacing: 0) {
+        PostView(
+            post: mockPost(
+                no: 11112,
+                com: ##"<a href="#p99999" class="quotelink">&gt;&gt;99999</a><br>Nice thread OP"##,
+                resto: 99999
+            ),
+            opNo: 99999
+        )
+        Divider().padding(.leading, 16)
+        PostView(
+            post: mockPost(
+                no: 11113,
+                com: ##"<a href="#p99999" class="quotelink">&gt;&gt;99999</a><br>Wait, that's my own thread"##,
+                resto: 99999
+            ),
+            opNo: 99999,
+            myPostNumbers: [99999]
+        )
+    }
+    .padding()
 }
 
 #Preview("Post — bare URLs (real API format)") {

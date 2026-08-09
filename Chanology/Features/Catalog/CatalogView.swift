@@ -1,12 +1,23 @@
 import SwiftUI
 import SwiftData
 
+struct NewThreadTarget: Hashable {
+    let threadNo: Int
+    let subject: String
+}
+
 struct CatalogView: View {
     let board: Board
     @State private var service = ForegroundRefreshService.shared
     @State private var searchText: String = ""
     @State private var sortOrder: CatalogSortOrder = .bumpOrder
+    @State private var showCompose = false
+    @State private var showLogin = false
+    @State private var isAuthenticating = false
+    @State private var navigateToNewThread: NewThreadTarget?
     @Query private var watchedThreads: [WatchedThread]
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("catalogToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
 
     var body: some View {
         Group {
@@ -35,6 +46,9 @@ struct CatalogView: View {
         .navigationDestination(for: CatalogThread.self) { thread in
             ThreadView(board: board.board, threadNo: thread.no, subject: thread.decodedSubject ?? thread.plainTextComment ?? "Thread")
         }
+        .navigationDestination(item: $navigateToNewThread) { target in
+            ThreadView(board: board.board, threadNo: target.threadNo, subject: target.subject)
+        }
         .searchable(text: $searchText, prompt: "Search threads")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -56,6 +70,72 @@ struct CatalogView: View {
         } message: {
             Text(service.catalogError[board.board]?.localizedDescription ?? "")
         }
+        .overlay {
+            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
+        }
+        .sheet(isPresented: $showCompose) {
+            ComposeView(
+                board: board.board,
+                mode: .newThread,
+                onThreadCreated: { newThreadNo, subject, comment in
+                    await handleNewThreadCreated(threadNo: newThreadNo, subject: subject, comment: comment)
+                }
+            )
+        }
+        .sheet(isPresented: $showLogin) {
+            LoginView(onSuccess: {
+                showLogin = false
+                showCompose = true
+            })
+        }
+    }
+
+    private var floatingToolbarActions: [ToolbarAction] {
+        [
+            ToolbarAction(
+                id: "new-thread",
+                icon: isAuthenticating ? "ellipsis" : "square.and.pencil",
+                label: "New thread",
+                role: .prominent,
+                isEnabled: !isAuthenticating,
+                action: { triggerNewThread() }
+            )
+        ]
+    }
+
+    private func triggerNewThread() {
+        if ChanPostAPI.shared.isAuthenticated {
+            showCompose = true
+        } else {
+            Task {
+                isAuthenticating = true
+                do {
+                    try await ChanPostAPI.shared.reauthenticateIfNeeded()
+                    showCompose = true
+                } catch {
+                    showLogin = true
+                }
+                isAuthenticating = false
+            }
+        }
+    }
+
+    /// Auto-watch the newly-created thread and navigate to it.
+    private func handleNewThreadCreated(threadNo: Int, subject: String, comment: String) async {
+        guard threadNo > 0 else { return }
+        let title = NewThreadTitleBuilder.title(subject: subject, comment: comment, threadNo: threadNo)
+        if !watchedThreads.contains(where: { $0.board == board.board && $0.threadNo == threadNo }) {
+            let watched = WatchedThread(
+                board: board.board,
+                threadNo: threadNo,
+                subject: title,
+                lastSeenPostNo: threadNo
+            )
+            modelContext.insert(watched)
+        }
+        // Refresh catalog so the new OP shows up in the catalog list.
+        await service.fetchCatalog(board: board.board)
+        navigateToNewThread = NewThreadTarget(threadNo: threadNo, subject: title)
     }
 
     private var filteredThreads: [CatalogThread] {
@@ -87,11 +167,15 @@ struct CatalogThreadRow: View {
             // Thumbnail
             if let url = thread.thumbnailURL(board: board) {
                 AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
+                    image.resizable().scaledToFit()
                 } placeholder: {
-                    Color.secondary.opacity(0.2)
+                    if let ratio = thread.imageAspectRatio {
+                        Color.secondary.opacity(0.2).frame(width: 80, height: 80 * ratio)
+                    } else {
+                        Color.secondary.opacity(0.2).frame(width: 80, height: 80)
+                    }
                 }
-                .frame(width: 80, height: 80)
+                .frame(width: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 RoundedRectangle(cornerRadius: 6)
@@ -124,14 +208,23 @@ struct CatalogThreadRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .overlay(alignment: .topTrailing) {
-            if isWatched {
-                Image(systemName: "bell.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.white)
-                    .padding(4)
-                    .background(Color.red, in: Circle())
-                    .padding(8)
+            VStack(spacing: 4) {
+                if (thread.sticky ?? 0) != 0 {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.purple, in: Circle())
+                }
+                if isWatched {
+                    Image(systemName: "bell.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.red, in: Circle())
+                }
             }
+            .padding(8)
         }
         .contentShape(Rectangle())
     }
@@ -146,12 +239,13 @@ private let previewBoard = Board(
     maxCommentChars: 2000, isArchived: nil, boardFlags: nil
 )
 
-private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42) -> CatalogThread {
+private func mockCatalogThread(no: Int = 12345, sub: String? = nil, com: String? = nil, replies: Int = 42, sticky: Bool = false) -> CatalogThread {
     let data = try! JSONSerialization.data(withJSONObject: [
         "no": no, "now": "01/01/25(Wed)12:00:00",
         "sub": sub as Any,
         "com": (com ?? "&gt;be me<br>post tech things<br>get (you)s") as Any,
-        "replies": replies, "images": 10, "last_modified": 1735000000
+        "replies": replies, "images": 10, "last_modified": 1735000000,
+        "sticky": sticky ? 1 : 0
     ] as [String: Any])
     var t = try! JSONDecoder().decode(CatalogThread.self, from: data)
     t._board = "g"
@@ -190,6 +284,23 @@ enum CatalogSortOrder: String, CaseIterable {
 #Preview("CatalogThreadRow — watched") {
     CatalogThreadRow(
         thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        isWatched: true
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — sticky") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "Welcome to /g/ — READ BEFORE POSTING", replies: 0, sticky: true),
+        board: "g"
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — sticky + watched") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "Welcome to /g/ — READ BEFORE POSTING", replies: 0, sticky: true),
         board: "g",
         isWatched: true
     )

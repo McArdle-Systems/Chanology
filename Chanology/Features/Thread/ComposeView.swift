@@ -13,18 +13,73 @@ private struct MemeFlag: Identifiable, Hashable {
 
 
 
-/// Compose sheet for posting a reply to a thread.
+/// Compose mode determines whether we're posting a reply or starting a new thread.
+enum ComposeMode: Equatable {
+    case reply(threadNo: Int)
+    case newThread
+
+    var threadNoForReply: Int {
+        if case .reply(let no) = self { return no }
+        return 0
+    }
+
+    var isNewThread: Bool {
+        if case .newThread = self { return true }
+        return false
+    }
+}
+
+/// Compose sheet for posting a reply or starting a new thread.
 struct ComposeView: View {
     let board: String
-    let threadNo: Int
+    let mode: ComposeMode
     let selectedQuotes: [Int]
     /// Plain text snippet to pre-fill as a greentext quote (from text selection).
     var quotedSnippet: String? = nil
-    /// Called after a successful post with the new post number.
+    /// Called after a successful reply with the new post number.
     var onPosted: ((Int) async -> Void)?
+    /// Called after a successful new-thread creation: (threadNo, subject, comment).
+    /// Subject is the trimmed text the user typed (may be empty).
+    var onThreadCreated: ((Int, String, String) async -> Void)?
+
+    /// Convenience initializer for reply compose (preserves existing call sites).
+    init(
+        board: String,
+        threadNo: Int,
+        selectedQuotes: [Int],
+        quotedSnippet: String? = nil,
+        onPosted: ((Int) async -> Void)? = nil
+    ) {
+        self.board = board
+        self.mode = .reply(threadNo: threadNo)
+        self.selectedQuotes = selectedQuotes
+        self.quotedSnippet = quotedSnippet
+        self.onPosted = onPosted
+        self.onThreadCreated = nil
+    }
+
+    /// Initializer for new-thread compose.
+    init(
+        board: String,
+        mode: ComposeMode,
+        selectedQuotes: [Int] = [],
+        quotedSnippet: String? = nil,
+        onPosted: ((Int) async -> Void)? = nil,
+        onThreadCreated: ((Int, String, String) async -> Void)? = nil
+    ) {
+        self.board = board
+        self.mode = mode
+        self.selectedQuotes = selectedQuotes
+        self.quotedSnippet = quotedSnippet
+        self.onPosted = onPosted
+        self.onThreadCreated = onThreadCreated
+    }
 
     @Environment(\.dismiss) private var dismiss
     @State private var service = ForegroundRefreshService.shared
+    @State private var subjectText = ""
+    @State private var nameText = ""
+    @State private var optionsText = ""
     @State private var commentText = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var imageData: Data?
@@ -47,6 +102,29 @@ struct ComposeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Header fields. Subject is OP-only; name & options apply to replies too.
+                VStack(spacing: 0) {
+                    if mode.isNewThread {
+                        TextField("Subject", text: $subjectText)
+                            .textInputAutocapitalization(.sentences)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        Divider()
+                    }
+                    HStack(spacing: 8) {
+                        TextField("Name (optional)", text: $nameText)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                        Divider().frame(height: 22)
+                        TextField("Options (e.g. sage)", text: $optionsText)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    Divider()
+                }
+
                 // Comment editor
                 TextEditor(text: $commentText)
                     .frame(minHeight: 120)
@@ -126,7 +204,7 @@ struct ComposeView: View {
                         .padding(.bottom, 4)
                 }
             }
-            .navigationTitle("Reply")
+            .navigationTitle(mode.isNewThread ? "New Thread" : "Reply")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -139,10 +217,10 @@ struct ComposeView: View {
                         if isPosting {
                             ProgressView()
                         } else {
-                            Text("Post")
+                            Text(mode.isNewThread ? "Create" : "Post")
                         }
                     }
-                    .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPosting)
+                    .disabled(!canSubmit || isPosting)
                 }
             }
             .disabled(isPosting)
@@ -217,20 +295,54 @@ struct ComposeView: View {
         commentText = combined + "\n"
     }
 
+    /// Whether the form has enough content to submit.
+    private var canSubmit: Bool {
+        let hasComment = !commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if mode.isNewThread {
+            // New threads require an image attachment (4chan rule).
+            return hasComment && imageData != nil
+        }
+        return hasComment
+    }
+
     private func submitPost() async {
         isPosting = true
         errorMessage = nil
         do {
-            let postNo = try await ChanPostAPI.shared.submitPost(
-                board: board,
-                threadNo: threadNo,
-                comment: commentText,
-                imageData: imageData,
-                imageFilename: imageFilename,
-                flag: selectedFlag?.code
-            )
-            dismiss()
-            await onPosted?(postNo)
+            switch mode {
+            case .reply(let threadNo):
+                let postNo = try await ChanPostAPI.shared.submitPost(
+                    board: board,
+                    threadNo: threadNo,
+                    comment: commentText,
+                    name: nameText.trimmingCharacters(in: .whitespacesAndNewlines),
+                    options: optionsText.trimmingCharacters(in: .whitespacesAndNewlines),
+                    imageData: imageData,
+                    imageFilename: imageFilename,
+                    flag: selectedFlag?.code
+                )
+                dismiss()
+                await onPosted?(postNo)
+            case .newThread:
+                guard let imageData, let imageFilename else {
+                    errorMessage = "An image attachment is required to start a new thread."
+                    isPosting = false
+                    return
+                }
+                let trimmedSubject = subjectText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let threadNo = try await ChanPostAPI.shared.submitNewThread(
+                    board: board,
+                    subject: trimmedSubject,
+                    name: nameText.trimmingCharacters(in: .whitespacesAndNewlines),
+                    options: optionsText.trimmingCharacters(in: .whitespacesAndNewlines),
+                    comment: commentText,
+                    imageData: imageData,
+                    imageFilename: imageFilename,
+                    flag: selectedFlag?.code
+                )
+                dismiss()
+                await onThreadCreated?(threadNo, trimmedSubject, commentText)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -278,6 +390,10 @@ private let previewPolFlags: [String: String] = [
 
 #Preview("New Reply") {
     ComposeView(board: "g", threadNo: 12345678, selectedQuotes: [])
+}
+
+#Preview("New Thread") {
+    ComposeView(board: "g", mode: .newThread)
 }
 
 #Preview("With Quotes & Meme Flags") {

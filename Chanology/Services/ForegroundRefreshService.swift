@@ -192,6 +192,14 @@ final class ForegroundRefreshService {
                     watched.lastChecked = Date()
                     try? context.save()
                 }
+
+                let isClosedNow = (posts.first?.closed ?? 0) != 0
+                let isArchivedNow = (posts.first?.archived ?? 0) != 0
+                if watched.isClosed != isClosedNow || watched.isArchived != isArchivedNow {
+                    watched.isClosed = isClosedNow
+                    watched.isArchived = isArchivedNow
+                    try? context.save()
+                }
             } catch ChanAPIError.notFound {
                 // Thread 404'd — remove from watch list
                 context.delete(watched)
