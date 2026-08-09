@@ -87,7 +87,7 @@ class QuotableTextView: UITextView {
         var actions = suggestedActions
         if let selected = text(in: textRange), !selected.isEmpty {
             let quote = UIAction(title: "Quote", image: UIImage(systemName: "quote.opening")) { [weak self] _ in
-                self?.onQuote?(selected)
+                self?.onQuote?(selected.string)
             }
             actions.insert(quote, at: 0)
         }
