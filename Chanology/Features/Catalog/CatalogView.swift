@@ -70,9 +70,7 @@ struct CatalogView: View {
         } message: {
             Text(service.catalogError[board.board]?.localizedDescription ?? "")
         }
-        .overlay {
-            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
-        }
+        .floatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
         .sheet(isPresented: $showCompose) {
             ComposeView(
                 board: board.board,

@@ -223,9 +223,7 @@ struct ThreadView: View {
         } message: {
             Text(threadError?.localizedDescription ?? "")
         }
-        .overlay {
-            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
-        }
+        .floatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
         .overlay(alignment: .bottom) {
             if showArchivedToast {
                 Text("This thread is closed and can no longer be replied to.")
