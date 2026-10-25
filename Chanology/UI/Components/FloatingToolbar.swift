@@ -217,9 +217,9 @@ private struct ToolbarButton: View {
 // MARK: - Adaptive placement
 
 extension View {
-    /// Shows `actions` as a floating toolbar in compact width, and as regular
-    /// toolbar items in regular width (e.g. the unfolded iPhone Duo), where the
-    /// system places them in the side rail instead of over the content.
+    /// Shows `actions` as regular toolbar items when the system shows a vertical
+    /// bar (the iPhone Duo's side rail, folded or unfolded) or in regular width,
+    /// and as a floating toolbar otherwise.
     func floatingToolbar(actions: [ToolbarAction], side: Binding<FloatingToolbarSide>) -> some View {
         modifier(AdaptiveFloatingToolbar(actions: actions, side: side))
     }
@@ -229,8 +229,9 @@ private struct AdaptiveFloatingToolbar: ViewModifier {
     let actions: [ToolbarAction]
     @Binding var side: FloatingToolbarSide
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var hasVerticalBar = false
 
-    private var usesSystemToolbar: Bool { horizontalSizeClass == .regular }
+    private var usesSystemToolbar: Bool { hasVerticalBar || horizontalSizeClass == .regular }
 
     // Both branches stay attached and toggle via `if`, so folding/unfolding
     // doesn't swap out `content` and reset its scroll position.
@@ -250,6 +251,61 @@ private struct AdaptiveFloatingToolbar: ViewModifier {
                     FloatingToolbar(actions: actions, side: $side)
                 }
             }
+            .background(VerticalBarReader(hasVerticalBar: $hasVerticalBar))
+    }
+}
+
+// MARK: - Vertical bar detection
+
+/// Bridges UIKit's `verticalBarEdge` trait (iOS 27.1+), which SwiftUI doesn't
+/// expose. The edge is `.unspecified` wherever the system never shows a
+/// vertical bar.
+private struct VerticalBarReader: UIViewRepresentable {
+    @Binding var hasVerticalBar: Bool
+
+    func makeUIView(context: Context) -> ReaderView {
+        ReaderView()
+    }
+
+    func updateUIView(_ view: ReaderView, context: Context) {
+        view.onChange = { hasVerticalBar = $0 }
+        view.report()
+    }
+
+    final class ReaderView: UIView {
+        var onChange: ((Bool) -> Void)?
+        private var lastValue: Bool?
+
+        init() {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            if #available(iOS 27.1, *) {
+                registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) { (view: ReaderView, _: UITraitCollection) in
+                    view.report()
+                }
+            }
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            report()
+        }
+
+        func report() {
+            guard window != nil else { return }
+            let value: Bool
+            if #available(iOS 27.1, *) {
+                value = traitCollection.verticalBarEdge != .unspecified
+            } else {
+                value = false
+            }
+            guard value != lastValue else { return }
+            lastValue = value
+            // Defer so we never mutate SwiftUI state mid-update.
+            DispatchQueue.main.async { [weak self] in self?.onChange?(value) }
+        }
     }
 }
 
@@ -257,31 +313,41 @@ private struct SystemToolbarButton: View {
     let action: ToolbarAction
 
     var body: some View {
+        // A titled Label (not a bare Image) so the item still has a name when
+        // the vertical bar compresses it into its overflow menu.
         Button(action: action.action) {
-            Image(systemName: action.icon)
-                .overlay {
-                    if action.showSlash {
-                        Rectangle()
-                            .frame(width: 2, height: 28)
-                            .rotationEffect(.degrees(45))
-                            .foregroundStyle(.primary.opacity(0.45))
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if let badge = action.badge, !badge.isEmpty {
-                        Text(badge)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .frame(minWidth: 14, minHeight: 14)
-                            .background(Color.accentColor, in: Capsule(style: .continuous))
-                            .offset(x: 8, y: -8)
-                    }
-                }
+            Label {
+                Text(action.label)
+            } icon: {
+                icon
+            }
         }
         .tint(tint)
         .disabled(!action.isEnabled)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var icon: some View {
+        Image(systemName: action.icon)
+            .overlay {
+                if action.showSlash {
+                    Rectangle()
+                        .frame(width: 2, height: 28)
+                        .rotationEffect(.degrees(45))
+                        .foregroundStyle(.primary.opacity(0.45))
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if let badge = action.badge, !badge.isEmpty {
+                    Text(badge)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(Color.accentColor, in: Capsule(style: .continuous))
+                        .offset(x: 8, y: -8)
+                }
+            }
     }
 
     private var tint: Color? {
