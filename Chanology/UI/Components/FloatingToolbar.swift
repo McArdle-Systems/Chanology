@@ -229,9 +229,13 @@ private struct AdaptiveFloatingToolbar: ViewModifier {
     let actions: [ToolbarAction]
     @Binding var side: FloatingToolbarSide
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var hasVerticalBar = false
+    // Seeded from the last screen's reading so a newly pushed screen starts in
+    // the right place instead of flashing the floating toolbar. `nil` until
+    // anything has been read, during which neither toolbar is shown.
+    @State private var hasVerticalBar: Bool? = VerticalBarReader.ReaderView.lastKnownValue
 
-    private var usesSystemToolbar: Bool { hasVerticalBar || horizontalSizeClass == .regular }
+    private var usesSystemToolbar: Bool { hasVerticalBar == true || horizontalSizeClass == .regular }
+    private var usesFloatingToolbar: Bool { hasVerticalBar == false && horizontalSizeClass != .regular }
 
     // Both branches stay attached and toggle via `if`, so folding/unfolding
     // doesn't swap out `content` and reset its scroll position.
@@ -247,7 +251,7 @@ private struct AdaptiveFloatingToolbar: ViewModifier {
                 }
             }
             .overlay {
-                if !usesSystemToolbar {
+                if usesFloatingToolbar {
                     FloatingToolbar(actions: actions, side: $side)
                 }
             }
@@ -261,7 +265,7 @@ private struct AdaptiveFloatingToolbar: ViewModifier {
 /// expose. The edge is `.unspecified` wherever the system never shows a
 /// vertical bar.
 private struct VerticalBarReader: UIViewRepresentable {
-    @Binding var hasVerticalBar: Bool
+    @Binding var hasVerticalBar: Bool?
 
     func makeUIView(context: Context) -> ReaderView {
         ReaderView()
@@ -274,7 +278,18 @@ private struct VerticalBarReader: UIViewRepresentable {
 
     final class ReaderView: UIView {
         var onChange: ((Bool) -> Void)?
+        static var lastKnownValue: Bool?
         private var lastValue: Bool?
+        private var isAwaitingTransition = false
+
+        private var owningViewController: UIViewController? {
+            var responder: UIResponder? = next
+            while let current = responder {
+                if let vc = current as? UIViewController { return vc }
+                responder = current.next
+            }
+            return nil
+        }
 
         init() {
             super.init(frame: .zero)
@@ -295,6 +310,21 @@ private struct VerticalBarReader: UIViewRepresentable {
 
         func report() {
             guard window != nil else { return }
+            // Mid-transition (e.g. an interactive swipe back) the trait can read
+            // `.unspecified` until the transition settles, which would bounce the
+            // toolbar out of the side rail and back. Re-check once it's done.
+            if let coordinator = owningViewController?.transitionCoordinator {
+                guard !isAwaitingTransition else { return }
+                isAwaitingTransition = true
+                coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                    // Next runloop, so the coordinator has been cleared.
+                    DispatchQueue.main.async {
+                        self?.isAwaitingTransition = false
+                        self?.report()
+                    }
+                }
+                return
+            }
             let value: Bool
             if #available(iOS 27.1, *) {
                 value = traitCollection.verticalBarEdge != .unspecified
@@ -303,6 +333,7 @@ private struct VerticalBarReader: UIViewRepresentable {
             }
             guard value != lastValue else { return }
             lastValue = value
+            Self.lastKnownValue = value
             // Defer so we never mutate SwiftUI state mid-update.
             DispatchQueue.main.async { [weak self] in self?.onChange?(value) }
         }
