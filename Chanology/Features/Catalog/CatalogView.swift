@@ -23,6 +23,7 @@ struct CatalogView: View {
         Group {
             if service.isCatalogLoading(board: board.board) && service.catalogThreads(board: board.board).isEmpty {
                 ProgressView("Loading /\(board.board)/…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {

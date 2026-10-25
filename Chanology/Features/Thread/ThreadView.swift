@@ -88,6 +88,7 @@ struct ThreadView: View {
         Group {
             if isLoading && posts.isEmpty {
                 ProgressView("Loading thread…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
