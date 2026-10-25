@@ -19,12 +19,23 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, macOS]
+    # GitHub's Xcode 27 image, same as the required Tests leg. It defaults to
+    # Xcode 27.0, but the app uses iOS 27.1 APIs, so pin 27.1 explicitly.
+    runs-on: xcode-27
+    timeout-minutes: 45
     environment: PROD
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Build numbers come from latest_testflight_build_number, so two uploads
+    # racing each other would pick the same number. Queue them instead.
+    concurrency:
+      group: testflight
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_27.1.app
 
       - name: Import distribution certificate
         env:
@@ -61,7 +72,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           OTHER_CODE_SIGN_FLAGS: "--keychain ${{ runner.temp }}/app-signing.keychain-db"
-        run: /opt/homebrew/bin/fastlane beta
+        run: fastlane beta
 
       - name: Clean up keychain
         if: always()
