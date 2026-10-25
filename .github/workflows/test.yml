@@ -9,10 +9,42 @@ on:
 
 jobs:
   test:
-    runs-on: [self-hosted, macOS]
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    # The self-hosted leg is supplementary -- its result doesn't gate the
+    # workflow (or the TestFlight run chained off it). The GitHub-hosted leg
+    # is the fast, always-available required signal.
+    continue-on-error: ${{ matrix.optional == true }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Required check. Runs on GitHub's Xcode 27 image so it never queues
+          # behind the single physical self-hosted Mac. That image defaults to
+          # Xcode 27.0, but the app uses iOS 27.1 APIs, so pin 27.1 explicitly.
+          # Keep the name version-free: it's what branch rules match on.
+          - name: Test (GitHub-hosted)
+            os: xcode-27
+            xcode: /Applications/Xcode_27.1.app
+          # Supplementary check on the self-hosted Mac, using whatever Xcode
+          # is selected there. Optional (continue-on-error above), so a
+          # failure here is worth reading but never blocks a merge.
+          - name: Test (self-hosted)
+            os: [self-hosted, macOS]
+            optional: true
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        if: matrix.xcode
+        run: sudo xcode-select -s "${{ matrix.xcode }}"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Resolve latest iPhone simulator
         id: sim
@@ -22,7 +54,8 @@ jobs:
           import sys, json
           data = json.load(sys.stdin)
           iphones = [
-            d for devices in data['devices'].values()
+            d for runtime, devices in data['devices'].items()
+            if 'SimRuntime.iOS' in runtime
             for d in devices
             if 'iPhone' in d['name'] and d['isAvailable']
           ]
