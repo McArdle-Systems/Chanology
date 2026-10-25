@@ -88,6 +88,7 @@ struct ThreadView: View {
         Group {
             if isLoading && posts.isEmpty {
                 ProgressView("Loading thread…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -223,9 +224,7 @@ struct ThreadView: View {
         } message: {
             Text(threadError?.localizedDescription ?? "")
         }
-        .overlay {
-            FloatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
-        }
+        .floatingToolbar(actions: floatingToolbarActions, side: $toolbarSide)
         .overlay(alignment: .bottom) {
             if showArchivedToast {
                 Text("This thread is closed and can no longer be replied to.")
