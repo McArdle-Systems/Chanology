@@ -201,6 +201,9 @@ struct CatalogThreadRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                Text(thread.displayTimestamp)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
         }

@@ -41,7 +41,9 @@
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
 		FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */; };
+		FAC5088A2FDD19EC0092EFE5 /* PostTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */; };
 		FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */; };
+		FAC5088C2FDD19FB0092EFE5 /* PostTimestampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */; };
 		FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */; };
 		FAC52C3D2FDD1E7D00630C8F /* PostFormBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */; };
 		FAC52C3F2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */; };
@@ -100,7 +102,9 @@
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
 		FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogic.swift; sourceTree = "<group>"; };
+		FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTimestamp.swift; sourceTree = "<group>"; };
 		FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogicTests.swift; sourceTree = "<group>"; };
+		FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTimestampTests.swift; sourceTree = "<group>"; };
 		FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilder.swift; sourceTree = "<group>"; };
 		FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormBuilder.swift; sourceTree = "<group>"; };
 		FAC52C3E2FDD1EB900630C8F /* NewThreadTitleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilderTests.swift; sourceTree = "<group>"; };
@@ -168,6 +172,7 @@
 			isa = PBXGroup;
 			children = (
 				FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */,
+				FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */,
 				3A004C6BC070ACEC1C9BD959 /* PostHTMLRenderer.swift */,
 				FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */,
 				FA91B0742F64E3880098EC87 /* FlowLayout.swift */,
@@ -226,6 +231,7 @@
 			isa = PBXGroup;
 			children = (
 				FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */,
+				FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */,
 				AA00000000000000000002 /* ReplyMapBuilderTests.swift */,
 				AA00000000000000000003 /* PostHTMLRendererTests.swift */,
 				AA00000000000000000004 /* ModelTests.swift */,
@@ -413,6 +419,7 @@
 				AA00000000000000000008 /* ModelTests.swift in Sources */,
 				AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */,
 				FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */,
+				FAC5088C2FDD19FB0092EFE5 /* PostTimestampTests.swift in Sources */,
 				FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */,
 				9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */,
 				FAC52C412FDD1EC700630C8F /* ComposeModeTests.swift in Sources */,
@@ -439,6 +446,7 @@
 				B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */,
 				FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */,
 				FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */,
+				FAC5088A2FDD19EC0092EFE5 /* PostTimestamp.swift in Sources */,
 				C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */,
 				FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */,
 				52129FBCB14EB81BED84E87A /* Post.swift in Sources */,

@@ -894,62 +894,40 @@ struct PostView: View {
             // Media (Image or Video) — tap to expand
             if let url = post.imageURL {
                 VStack(alignment: .leading, spacing: 4) {
-                    if post.ext == ".webm" || post.ext == ".mp4" {
-                        // Video thumbnail with play indicator
-                        ZStack {
-                            if let thumbURL = post.thumbnailURL {
-                                AsyncImage(url: thumbURL) { img in
+                    let slot = post.mediaSlotSize
+                    Group {
+                        if post.ext == ".webm" || post.ext == ".mp4" {
+                            // Video thumbnail with play indicator
+                            ZStack {
+                                AsyncImage(url: post.thumbnailURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    if let ratio = post.imageAspectRatio {
-                                        let w = min(CGFloat(post.tnW ?? 260), 260)
-                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
-                                    } else {
-                                        Color.secondary.opacity(0.2).frame(height: 120)
-                                    }
+                                    Color.secondary.opacity(0.2)
                                 }
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(.white)
+                                    .shadow(radius: 4)
                             }
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.white)
-                                .shadow(radius: 4)
-                        }
-                        .frame(maxWidth: 260)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .onTapGesture { onImageTap?(url) }
-                    } else if post.ext == ".gif" {
-                        // Animated GIF
-                        AnimatedImageView(url: url)
-                            .frame(maxWidth: 260)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .onTapGesture { onImageTap?(url) }
-                    } else {
-                        // Static Image — use mobile-optimized version when available
-                        AsyncImage(url: post.mobileImageURL ?? url) { image in
-                            image.resizable().scaledToFit()
-                        } placeholder: {
-                            if let thumbURL = post.thumbnailURL {
-                                AsyncImage(url: thumbURL) { img in
+                        } else if post.ext == ".gif" {
+                            // Animated GIF
+                            AnimatedImageView(url: url, fillsProposedSize: true)
+                        } else {
+                            // Static Image — use mobile-optimized version when available
+                            AsyncImage(url: post.mobileImageURL ?? url) { image in
+                                image.resizable().scaledToFit()
+                            } placeholder: {
+                                AsyncImage(url: post.thumbnailURL) { img in
                                     img.resizable().scaledToFit()
                                 } placeholder: {
-                                    if let ratio = post.imageAspectRatio {
-                                        let w = min(CGFloat(post.tnW ?? 260), 260)
-                                        Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
-                                    } else {
-                                        Color.secondary.opacity(0.2).frame(height: 120)
-                                    }
+                                    Color.secondary.opacity(0.2)
                                 }
-                            } else if let ratio = post.imageAspectRatio {
-                                let w = min(CGFloat(post.tnW ?? 260), 260)
-                                Color.secondary.opacity(0.2).frame(width: w, height: w * ratio)
-                            } else {
-                                Color.secondary.opacity(0.2).frame(height: 120)
                             }
                         }
-                        .frame(maxWidth: 260)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .onTapGesture { onImageTap?(url) }
                     }
+                    .frame(width: slot.width, height: slot.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onTapGesture { onImageTap?(url) }
 
                     // Filename display
                     if let filename = post.filename, let ext = post.ext {
@@ -970,7 +948,7 @@ struct PostView: View {
                 }
             }
 
-            Text(post.now)
+            Text(post.displayTimestamp)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
@@ -1349,6 +1327,14 @@ struct WebMPlayerView: UIViewRepresentable {
 
 struct AnimatedImageView: UIViewRepresentable {
     let url: URL
+    /// Take the proposed size rather than the image's natural size, which isn't
+    /// known until it loads.
+    var fillsProposedSize = false
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIImageView, context: Context) -> CGSize? {
+        guard fillsProposedSize, let width = proposal.width, let height = proposal.height else { return nil }
+        return CGSize(width: width, height: height)
+    }
 
     func makeUIView(context: Context) -> UIImageView {
         let imageView = UIImageView()
