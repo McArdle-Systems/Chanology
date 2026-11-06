@@ -910,9 +910,8 @@ struct PostView: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.accentColor)
                         }
-                        Text(verbatim: "No.\(post.no)")
+                        highlighted("No.\(post.no)", foreground: isQuoteSelected ? Color.accentColor : Color.secondary)
                             .font(.caption2)
-                            .foregroundStyle(isQuoteSelected ? Color.accentColor : Color.secondary)
                     }
                 }
                 .buttonStyle(.plain)

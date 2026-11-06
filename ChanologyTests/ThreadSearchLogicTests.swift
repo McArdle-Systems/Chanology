@@ -213,3 +213,30 @@ private func quote(_ n: Int) -> String {
     #expect(ThreadSearchLogic.matches(query: "hidden_name", posts: [spoilered], myPostNumbers: []).isEmpty)
     #expect(ThreadSearchLogic.matches(query: "hidden_name", posts: [spoilered], myPostNumbers: [], revealedMedia: [1]) == [1])
 }
+
+// MARK: - Post number
+
+@Test func matches_fullPostNumber() {
+    let posts = [post(no: 751046870), post(no: 750000000)]
+    #expect(ThreadSearchLogic.matches(query: "751046870", posts: posts, myPostNumbers: []) == [751046870])
+}
+
+@Test func matches_partialPostNumber() {
+    let posts = [post(no: 751046870), post(no: 750000000)]
+    #expect(ThreadSearchLogic.matches(query: "1046", posts: posts, myPostNumbers: []) == [751046870])
+}
+
+@Test func matches_postNumberWithDisplayedPrefix() {
+    let posts = [post(no: 751046870), post(no: 750000000)]
+    #expect(ThreadSearchLogic.matches(query: "No.751046870", posts: posts, myPostNumbers: []) == [751046870])
+}
+
+@Test func matches_textQueryDoesNotMatchPostNumberLabel() {
+    let posts = [post(no: 751046870)]
+    #expect(ThreadSearchLogic.matches(query: "no", posts: posts, myPostNumbers: []).isEmpty)
+    #expect(ThreadSearchLogic.matches(query: "no.", posts: posts, myPostNumbers: []).isEmpty)
+}
+
+@Test func postNumberMatch_ignoresPartlyNumericQueries() {
+    #expect(!ThreadSearchLogic.matchesPostNumber(751046870, query: "751x"))
+}

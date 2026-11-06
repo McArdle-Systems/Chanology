@@ -153,7 +153,8 @@ struct CatalogView: View {
         guard !searchText.isEmpty else { return sorted }
         return sorted.filter { thread in
             thread.sub?.localizedCaseInsensitiveContains(searchText) == true ||
-            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true
+            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true ||
+            ThreadSearchLogic.matchesPostNumber(thread.no, query: searchText)
         }
     }
 }

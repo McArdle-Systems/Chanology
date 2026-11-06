@@ -7,7 +7,7 @@ enum ThreadSearchLogic {
 
     /// Returns the post numbers that match `query`, preserving the order of `posts`.
     ///
-    /// Matches against the post's plain-text comment, subject, name, filename, and poster ID,
+    /// Matches against the post's number, plain-text comment, subject, name, filename, and poster ID,
     /// as displayed: a hidden spoiler reads as `[spoiler]`, and the filename of hidden media
     /// doesn't match.
     /// When `query` is the "(You)" marker (case-insensitive, optionally surrounded by parens
@@ -39,13 +39,23 @@ enum ThreadSearchLogic {
             let isFilenameShown = !post.isMediaSpoilered || revealedMedia.contains(post.no)
             let inFilename = isFilenameShown && post.filename?.lowercased().contains(lowered) == true
             let inID       = post.posterID?.lowercased().contains(lowered) == true
+            let inNumber   = matchesPostNumber(post.no, query: lowered)
             let inYouMarker = matchesYouMarker && postCarriesYouMarker(
                 post,
                 myPostNumbers: myPostNumbers,
                 postsRepliedToByUser: postsRepliedToByUser
             )
-            return (inComment || inSubject || inName || inFilename || inID || inYouMarker) ? post.no : nil
+            return (inComment || inSubject || inName || inFilename || inID || inNumber || inYouMarker) ? post.no : nil
         }
+    }
+
+    /// Whether `query` is all or part of a post number, with or without the displayed "No."
+    /// prefix. Only digits count, so a query like "no" doesn't match every post.
+    static func matchesPostNumber(_ number: Int, query: String) -> Bool {
+        let lowered = query.lowercased()
+        let digits = lowered.hasPrefix("no.") ? String(lowered.dropFirst(3)) : lowered
+        guard !digits.isEmpty, digits.allSatisfy(\.isNumber) else { return false }
+        return String(number).contains(digits)
     }
 
     /// Post numbers that are quoted by any of the user's own posts — i.e., the targets
