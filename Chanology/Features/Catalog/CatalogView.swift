@@ -272,9 +272,13 @@ struct CatalogThreadRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-                Text(thread.displayTimestamp)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 8) {
+                    Text(thread.displayTimestamp)
+                    Text(verbatim: "No.\(thread.no)")
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
             }
             Spacer(minLength: 0)
         }
