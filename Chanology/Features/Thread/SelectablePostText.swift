@@ -9,9 +9,11 @@ struct SelectablePostText: UIViewRepresentable {
     let myPostNumbers: [Int]
     var opNo: Int? = nil
     var searchQuery: String? = nil
+    var revealedSpoilers: Set<Int> = []
     var onSelectionChange: ((String?) -> Void)?
     var onQuote: ((String) -> Void)?
     var onLinkTap: ((URL) -> Void)?
+    var onRevealSpoiler: ((Int) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onLinkTap: onLinkTap)
@@ -26,24 +28,18 @@ struct SelectablePostText: UIViewRepresentable {
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
         tv.delegate = context.coordinator
+        // Each run sets its own link color. The default would recolor hidden spoiler text.
+        tv.linkTextAttributes = [:]
         return tv
     }
 
     func updateUIView(_ uiView: QuotableTextView, context: Context) {
         let tint = uiView.tintColor ?? .systemBlue
-        let base = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: myPostNumbers, opNo: opNo, tintColor: tint)
+        let base = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: myPostNumbers, opNo: opNo, tintColor: tint, revealedSpoilers: revealedSpoilers)
         let rendered: NSAttributedString
         if let query = searchQuery, !query.isEmpty {
             let mutable = NSMutableAttributedString(attributedString: base)
-            let text = mutable.string as NSString
-            var searchRange = NSRange(location: 0, length: text.length)
-            while searchRange.location < text.length {
-                let found = text.range(of: query, options: .caseInsensitive, range: searchRange)
-                if found.location == NSNotFound { break }
-                mutable.addAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.5), range: found)
-                let next = found.location + max(1, found.length)
-                searchRange = NSRange(location: next, length: text.length - next)
-            }
+            PostHTMLRenderer.applySearchHighlight(to: mutable, query: query)
             rendered = mutable
         } else {
             rendered = base
@@ -53,6 +49,7 @@ struct SelectablePostText: UIViewRepresentable {
         }
         uiView.onQuote = onQuote
         context.coordinator.onLinkTap = onLinkTap
+        context.coordinator.onRevealSpoiler = onRevealSpoiler
         context.coordinator.onSelectionChange = onSelectionChange
     }
 
@@ -67,6 +64,7 @@ struct SelectablePostText: UIViewRepresentable {
     class Coordinator: NSObject, UITextViewDelegate {
         var onLinkTap: ((URL) -> Void)?
         var onSelectionChange: ((String?) -> Void)?
+        var onRevealSpoiler: ((Int) -> Void)?
 
         init(onLinkTap: ((URL) -> Void)?) {
             self.onLinkTap = onLinkTap
@@ -89,9 +87,20 @@ struct SelectablePostText: UIViewRepresentable {
 
         func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
             if case .link(let url) = textItem.content {
+                if let index = PostHTMLRenderer.spoilerIndex(from: url) {
+                    return UIAction { [weak self] _ in self?.onRevealSpoiler?(index) }
+                }
                 return UIAction { [weak self] _ in self?.onLinkTap?(url) }
             }
             return defaultAction
+        }
+
+        /// A long press shouldn't offer to open or copy the internal spoiler URL.
+        func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
+            if case .link(let url) = textItem.content, PostHTMLRenderer.spoilerIndex(from: url) != nil {
+                return nil
+            }
+            return UITextItem.MenuConfiguration(menu: defaultMenu)
         }
     }
 }

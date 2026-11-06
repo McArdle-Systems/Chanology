@@ -26,6 +26,8 @@ struct ThreadView: View {
     @State private var highlightedPostNo: Int?
     @State private var newRepliesMarkerPostNo: Int?
     @State private var replyMap: [Int: [Int]] = [:]
+    @State private var revealedSpoilers: [Int: Set<Int>] = [:]
+    @State private var revealedMedia: Set<Int> = []
     @State private var selectedQuotes: [Int] = []
     @State private var highlightedPosterID: String?
     @State private var showFullTitle = false
@@ -255,6 +257,8 @@ struct ThreadView: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: searchIsOpen)
         .onChange(of: searchText) { _, _ in updateSearchMatches() }
+        .onChange(of: revealedSpoilers) { _, _ in refreshSearchMatchesKeepingPosition() }
+        .onChange(of: revealedMedia) { _, _ in refreshSearchMatchesKeepingPosition() }
         .sheet(isPresented: $showCompose) {
             ComposeView(
                 board: board,
@@ -377,11 +381,7 @@ struct ThreadView: View {
             highlightedPostNo = nil
             return
         }
-        let newMatches = ThreadSearchLogic.matches(
-            query: searchText,
-            posts: posts,
-            myPostNumbers: Set(myPostNumbers)
-        )
+        let newMatches = currentSearchMatches()
         searchMatches = newMatches
         currentMatchIndex = 0
         if !newMatches.isEmpty {
@@ -389,6 +389,25 @@ struct ThreadView: View {
         } else {
             highlightedPostNo = nil
         }
+    }
+
+    private func currentSearchMatches() -> [Int] {
+        ThreadSearchLogic.matches(
+            query: searchText,
+            posts: posts,
+            myPostNumbers: Set(myPostNumbers),
+            revealedSpoilers: revealedSpoilers,
+            revealedMedia: revealedMedia
+        )
+    }
+
+    /// Revealing something changes what's searchable, but shouldn't scroll away from it.
+    private func refreshSearchMatchesKeepingPosition() {
+        guard searchIsOpen, !searchText.isEmpty else { return }
+        let currentPostNo = currentMatchIndex < searchMatches.count ? searchMatches[currentMatchIndex] : nil
+        let newMatches = currentSearchMatches()
+        searchMatches = newMatches
+        currentMatchIndex = currentPostNo.flatMap(newMatches.firstIndex(of:)) ?? 0
     }
 
     private func navigateMatch(forward: Bool) {
@@ -498,7 +517,11 @@ struct ThreadView: View {
             myPostNumbers: myPostNumbers,
             posterPostCounts: posterPostCounts,
             searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
+            revealedSpoilers: revealedSpoilers[post.no] ?? [],
+            isMediaRevealed: revealedMedia.contains(post.no),
             onImageTap: { url in expandedImageURL = url },
+            onRevealSpoiler: { index in revealedSpoilers[post.no, default: []].insert(index) },
+            onRevealMedia: { revealedMedia.insert(post.no) },
             onPostNumberTap: { postNo in
                 if let idx = selectedQuotes.firstIndex(of: postNo) {
                     selectedQuotes.remove(at: idx)
@@ -774,7 +797,11 @@ struct PostView: View {
     var myPostNumbers: [Int] = []
     var posterPostCounts: [String: Int] = [:]
     var searchQuery: String? = nil
+    var revealedSpoilers: Set<Int> = []
+    var isMediaRevealed: Bool = false
     var onImageTap: ((URL) -> Void)?
+    var onRevealSpoiler: ((Int) -> Void)?
+    var onRevealMedia: (() -> Void)?
     var onPostNumberTap: ((Int) -> Void)?
     var onPosterIDTap: ((String) -> Void)?
     var onQuote: ((String) -> Void)?
@@ -895,8 +922,11 @@ struct PostView: View {
             if let url = post.imageURL {
                 VStack(alignment: .leading, spacing: 4) {
                     let slot = post.mediaSlotSize
+                    let isMediaHidden = post.isMediaSpoilered && !isMediaRevealed
                     Group {
-                        if post.ext == ".webm" || post.ext == ".mp4" {
+                        if isMediaHidden {
+                            SpoilerMediaPlaceholder(iconSize: 28)
+                        } else if post.ext == ".webm" || post.ext == ".mp4" {
                             // Video thumbnail with play indicator
                             ZStack {
                                 AsyncImage(url: post.thumbnailURL) { img in
@@ -927,10 +957,13 @@ struct PostView: View {
                     }
                     .frame(width: slot.width, height: slot.height)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onTapGesture { onImageTap?(url) }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if isMediaHidden { onRevealMedia?() } else { onImageTap?(url) }
+                    }
 
                     // Filename display
-                    if let filename = post.filename, let ext = post.ext {
+                    if !isMediaHidden, let filename = post.filename, let ext = post.ext {
                         highlighted("\(filename)\(ext)", foreground: Color(UIColor.secondaryLabel))
                             .font(.caption2)
                             .lineLimit(1)
@@ -941,10 +974,12 @@ struct PostView: View {
 
             // Comment — rendered with full HTML (greentext, quote links, entities, etc.)
             if let html = post.com, !html.isEmpty {
-                SelectablePostText(html: html, myPostNumbers: myPostNumbers, opNo: opNo, searchQuery: searchQuery, onSelectionChange: onSelectionChange) { selected in
+                SelectablePostText(html: html, myPostNumbers: myPostNumbers, opNo: opNo, searchQuery: searchQuery, revealedSpoilers: revealedSpoilers, onSelectionChange: onSelectionChange) { selected in
                     onQuote?(selected)
                 } onLinkTap: { url in
                     openURL(url)
+                } onRevealSpoiler: { index in
+                    onRevealSpoiler?(index)
                 }
             }
 
@@ -987,6 +1022,26 @@ struct PostView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+}
+
+// MARK: - Spoiler Media Placeholder
+
+/// Stands in for spoilered media until it's tapped. The media isn't requested until then.
+struct SpoilerMediaPlaceholder: View {
+    var iconSize: CGFloat
+
+    var body: some View {
+        Color.secondary.opacity(0.35)
+            .overlay {
+                Image(systemName: "eye.slash.fill")
+                    .font(.system(size: iconSize))
+                    .foregroundStyle(.white)
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Spoiler image")
+            .accessibilityHint("Tap to reveal")
+            .accessibilityAddTraits(.isButton)
     }
 }
 

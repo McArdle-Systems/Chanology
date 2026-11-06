@@ -65,7 +65,7 @@ enum BackgroundRefreshHandler {
         guard let threads = try? context.fetch(descriptor), !threads.isEmpty else { return }
 
         // Process threads sequentially to respect 4chan's rate limit (~1 req/sec)
-        for thread in threads {
+        for thread in threads where thread.shouldPoll {
             guard !Task.isCancelled else { break }
 
             do {

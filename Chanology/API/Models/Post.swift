@@ -5,6 +5,7 @@ struct Post: Codable, Identifiable, Sendable {
     let no: Int              // Post number (unique ID)
     let now: String          // Date string "MM/DD/YY(Day)HH:MM:SS", US Eastern
     var time: Int?           // UNIX timestamp of the post
+    var spoiler: Int?        // 1 if the media is marked as a spoiler
     let name: String?        // Poster name
     let trip: String?        // Tripcode
     let posterID: String?    // Poster ID (on boards that show it)
@@ -66,6 +67,8 @@ struct Post: Codable, Identifiable, Sendable {
         return CGSize(width: width, height: width * imageAspectRatio)
     }
 
+    var isMediaSpoilered: Bool { (spoiler ?? 0) != 0 }
+
     var displayTimestamp: String { PostTimestamp.string(time: time, fallback: now) }
 
     /// Injected after decode — not part of API response
@@ -97,7 +100,7 @@ struct Post: Codable, Identifiable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case no, now, time, name, trip, capcode, com, sub, tim
+        case no, now, time, spoiler, name, trip, capcode, com, sub, tim
         case filename, ext, fsize, w, h, md5, resto, replies, images
         case sticky, closed, archived, bumplimit, imagelimit
         case country

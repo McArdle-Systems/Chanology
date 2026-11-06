@@ -23,13 +23,66 @@ enum PostHTMLRenderer {
 
     // MARK: - Public
 
-    /// Plain text with entities decoded — used for catalog previews and notifications.
-    static func plainText(_ html: String) -> String {
-        let noTags = html
+    /// URL for a hidden spoiler, so tapping it goes through the text view's link handling.
+    static func spoilerURL(index: Int) -> URL? {
+        URL(string: "chanology://spoiler/\(index)")
+    }
+
+    /// The spoiler index in `url`, or nil if it isn't a spoiler URL.
+    static func spoilerIndex(from url: URL) -> Int? {
+        guard url.scheme == "chanology", url.host() == "spoiler" else { return nil }
+        return Int(url.lastPathComponent)
+    }
+
+    /// What a hidden spoiler reads as in plain text and search.
+    static let hiddenSpoilerText = "[spoiler]"
+
+    /// Plain text with entities decoded and hidden spoilers redacted — used for catalog
+    /// previews, notifications, and search.
+    static func plainText(_ html: String, revealedSpoilers: Set<Int> = []) -> String {
+        var redacted = ""
+        var cursor = html.startIndex
+        var spoilerIndex = 0
+        while let spoiler = html[cursor...].range(of: "(?s)<s>.*?</s>", options: .regularExpression) {
+            redacted += html[cursor..<spoiler.lowerBound]
+            redacted += revealedSpoilers.contains(spoilerIndex) ? html[spoiler].dropFirst(3).dropLast(4) : Substring(hiddenSpoilerText)
+            cursor = spoiler.upperBound
+            spoilerIndex += 1
+        }
+        redacted += html[cursor...]
+        let noTags = redacted
             .replacingOccurrences(of: "<br>", with: "\n")
             .replacingOccurrences(of: "<wbr>", with: "")
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         return decodeEntities(noTags).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Highlights matches of `query` in rendered text. Hidden spoilers read as
+    /// `hiddenSpoilerText`, so text inside one is never highlighted, which would expose it.
+    static func applySearchHighlight(to text: NSMutableAttributedString, query: String) {
+        let whole = NSRange(location: 0, length: text.length)
+        var hiddenRanges: [NSRange] = []
+        text.enumerateAttribute(.link, in: whole) { value, range, _ in
+            if let url = value as? URL, spoilerIndex(from: url) != nil { hiddenRanges.append(range) }
+        }
+
+        let string = text.string as NSString
+        var searchRange = whole
+        while searchRange.location < string.length {
+            let found = string.range(of: query, options: .caseInsensitive, range: searchRange)
+            if found.location == NSNotFound { break }
+            if !hiddenRanges.contains(where: { NSIntersectionRange($0, found).length > 0 }) {
+                text.addAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.5), range: found)
+            }
+            let next = found.location + max(1, found.length)
+            searchRange = NSRange(location: next, length: string.length - next)
+        }
+
+        if hiddenSpoilerText.range(of: query, options: .caseInsensitive) != nil {
+            for range in hiddenRanges {
+                text.addAttributes([.backgroundColor: UIColor.systemYellow, .foregroundColor: UIColor.systemYellow], range: range)
+            }
+        }
     }
 
     // MARK: - Bare URL linkification
@@ -151,7 +204,7 @@ enum PostHTMLRenderer {
 
     // MARK: - UIKit rendering (for UITextView-based selection)
 
-    static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], opNo: Int? = nil, tintColor: UIColor = .systemBlue) -> NSAttributedString {
+    static func renderNSAttributedString(_ html: String, myPostNumbers: [Int] = [], opNo: Int? = nil, tintColor: UIColor = .systemBlue, revealedSpoilers: Set<Int> = []) -> NSAttributedString {
         let html = html.replacingOccurrences(of: "<wbr>", with: "")
         let result = NSMutableAttributedString()
         var styleStack: [UIKitStyle] = [UIKitStyle()]
@@ -159,6 +212,7 @@ enum PostHTMLRenderer {
         var externalLinkHref: String? = nil
         var skipInnerText = false
         var pendingOverflow: String? = nil
+        var nextSpoilerIndex = 0
 
         while index < html.endIndex {
             if html[index] == "<" {
@@ -177,8 +231,10 @@ enum PostHTMLRenderer {
                     case "a":
                         if let href = externalLinkHref, let url = URL(string: href) {
                             var attrs = styleStack.last?.attributes ?? [:]
-                            attrs[.link] = url
-                            attrs[.foregroundColor] = tintColor
+                            if styleStack.last?.hiddenSpoilerIndex == nil {
+                                attrs[.link] = url
+                                attrs[.foregroundColor] = tintColor
+                            }
                             result.append(NSAttributedString(string: href, attributes: attrs))
                             externalLinkHref = nil
                             skipInnerText = false
@@ -192,7 +248,7 @@ enum PostHTMLRenderer {
                     if tagName == "br" {
                         result.append(NSAttributedString(string: "\n", attributes: styleStack.last?.attributes ?? [:]))
                     }
-                    applyOpenTagUIKit(name: tagName, attrs: attrs, stack: &styleStack, tintColor: tintColor)
+                    applyOpenTagUIKit(name: tagName, attrs: attrs, stack: &styleStack, tintColor: tintColor, nextSpoilerIndex: &nextSpoilerIndex, revealedSpoilers: revealedSpoilers)
                     if tagName == "a", attrs["class"] != "quotelink",
                        let href = attrs["href"],
                        let url = URL(string: href),
@@ -243,7 +299,7 @@ enum PostHTMLRenderer {
         return result
     }
 
-    private static func applyOpenTagUIKit(name: String, attrs: [String: String], stack: inout [UIKitStyle], tintColor: UIColor) {
+    private static func applyOpenTagUIKit(name: String, attrs: [String: String], stack: inout [UIKitStyle], tintColor: UIColor, nextSpoilerIndex: inout Int, revealedSpoilers: Set<Int>) {
         switch name {
         case "br", "wbr": return
         case "span":
@@ -262,7 +318,14 @@ enum PostHTMLRenderer {
             stack.append(s)
         case "b", "strong": var s = stack.last ?? UIKitStyle(); s.isBold = true;      stack.append(s)
         case "i", "em":     var s = stack.last ?? UIKitStyle(); s.isItalic = true;    stack.append(s)
-        case "s":           var s = stack.last ?? UIKitStyle(); s.isSpoiler = true;   stack.append(s)
+        case "s":
+            var s = stack.last ?? UIKitStyle()
+            if s.hiddenSpoilerIndex == nil {
+                let spoilerIndex = nextSpoilerIndex
+                nextSpoilerIndex += 1
+                if !revealedSpoilers.contains(spoilerIndex) { s.hiddenSpoilerIndex = spoilerIndex }
+            }
+            stack.append(s)
         case "pre", "code": var s = stack.last ?? UIKitStyle(); s.isMonospace = true; stack.append(s)
         default: stack.append(stack.last ?? UIKitStyle())
         }
@@ -302,7 +365,7 @@ enum PostHTMLRenderer {
     }
 
     private static func linkifyURLsNS(in text: String, style: UIKitStyle, tintColor: UIColor) -> NSAttributedString {
-        guard let detector = urlDetector else {
+        guard style.hiddenSpoilerIndex == nil, let detector = urlDetector else {
             return NSAttributedString(string: text, attributes: style.attributes)
         }
         let nsText = text as NSString
@@ -341,7 +404,7 @@ enum PostHTMLRenderer {
         var isBold = false
         var isItalic = false
         var isMonospace = false
-        var isSpoiler = false
+        var hiddenSpoilerIndex: Int?
         var strikethrough = false
         var link: URL?
 
@@ -359,10 +422,10 @@ enum PostHTMLRenderer {
 
         var attributes: [NSAttributedString.Key: Any] {
             var attrs: [NSAttributedString.Key: Any] = [.font: resolvedFont]
-            if isSpoiler {
-                let c = UIColor(white: 0.15, alpha: 1)
-                attrs[.foregroundColor] = c
-                attrs[.backgroundColor] = c
+            if let hiddenSpoilerIndex {
+                attrs[.foregroundColor] = UIColor.systemGray
+                attrs[.backgroundColor] = UIColor.systemGray
+                attrs[.link] = PostHTMLRenderer.spoilerURL(index: hiddenSpoilerIndex)
                 return attrs
             }
             if let link  { attrs[.link] = link }

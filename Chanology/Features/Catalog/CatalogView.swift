@@ -224,10 +224,18 @@ struct CatalogThreadRow: View {
     let board: String
     var isWatched: Bool = false
 
+    @State private var isSpoilerRevealed = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Thumbnail
-            if let url = thread.thumbnailURL(board: board) {
+            if thread.thumbnailURL(board: board) != nil, thread.isMediaSpoilered, !isSpoilerRevealed {
+                SpoilerMediaPlaceholder(iconSize: 18)
+                    .frame(width: 80, height: 80 * (thread.imageAspectRatio ?? 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+                    .onTapGesture { isSpoilerRevealed = true }
+            } else if let url = thread.thumbnailURL(board: board) {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFit()
                 } placeholder: {

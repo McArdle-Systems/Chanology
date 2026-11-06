@@ -5,6 +5,7 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
     let no: Int
     let now: String
     let time: Int?
+    let spoiler: Int?
     let name: String?
     let sub: String?
     let com: String?
@@ -38,6 +39,8 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
         return Double(imgH) / Double(imgW)
     }
 
+    var isMediaSpoilered: Bool { (spoiler ?? 0) != 0 }
+
     var displayTimestamp: String { PostTimestamp.string(time: time, fallback: now) }
 
     var decodedSubject: String? { sub.map { PostHTMLRenderer.decodeEntities($0) } }
@@ -48,7 +51,7 @@ struct CatalogThread: Codable, Identifiable, Hashable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case no, now, time, name, sub, com, tim, ext, w, h, replies, images, sticky, closed
+        case no, now, time, spoiler, name, sub, com, tim, ext, w, h, replies, images, sticky, closed
         case tnW = "tn_w"
         case tnH = "tn_h"
         case mobileImg = "m_img"
