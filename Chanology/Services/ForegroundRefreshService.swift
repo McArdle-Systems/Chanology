@@ -161,7 +161,7 @@ final class ForegroundRefreshService {
         let descriptor = FetchDescriptor<WatchedThread>()
         guard let watchedThreads = try? context.fetch(descriptor), !watchedThreads.isEmpty else { return }
 
-        for watched in watchedThreads {
+        for watched in watchedThreads where watched.shouldPoll {
             guard !Task.isCancelled else { break }
 
             let board = watched.board

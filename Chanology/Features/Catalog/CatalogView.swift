@@ -153,7 +153,8 @@ struct CatalogView: View {
         guard !searchText.isEmpty else { return sorted }
         return sorted.filter { thread in
             thread.sub?.localizedCaseInsensitiveContains(searchText) == true ||
-            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true
+            thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true ||
+            ThreadSearchLogic.matchesPostNumber(thread.no, query: searchText)
         }
     }
 }
@@ -224,10 +225,18 @@ struct CatalogThreadRow: View {
     let board: String
     var isWatched: Bool = false
 
+    @State private var isSpoilerRevealed = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Thumbnail
-            if let url = thread.thumbnailURL(board: board) {
+            if thread.thumbnailURL(board: board) != nil, thread.isMediaSpoilered, !isSpoilerRevealed {
+                SpoilerMediaPlaceholder(iconSize: 18)
+                    .frame(width: 80, height: 80 * (thread.imageAspectRatio ?? 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+                    .onTapGesture { isSpoilerRevealed = true }
+            } else if let url = thread.thumbnailURL(board: board) {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFit()
                 } placeholder: {
@@ -264,9 +273,13 @@ struct CatalogThreadRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-                Text(thread.displayTimestamp)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 8) {
+                    Text(thread.displayTimestamp)
+                    Text(verbatim: "No.\(thread.no)")
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
             }
             Spacer(minLength: 0)
         }

@@ -363,3 +363,31 @@ private let catalogThreadJSON = """
     #expect(response.posts[0].no == 1)
     #expect(response.posts[1].no == 2)
 }
+
+// MARK: - Spoiler media
+
+@Test func post_decodesMediaSpoiler() throws {
+    let data = Data(#"{"no":1,"now":"","resto":0,"spoiler":1}"#.utf8)
+    #expect(try JSONDecoder().decode(Post.self, from: data).isMediaSpoilered)
+}
+
+@Test func post_mediaIsNotSpoileredByDefault() throws {
+    let data = Data(#"{"no":1,"now":"","resto":0}"#.utf8)
+    #expect(try !JSONDecoder().decode(Post.self, from: data).isMediaSpoilered)
+}
+
+@Test func catalogThread_decodesMediaSpoiler() throws {
+    let data = Data(#"{"no":1,"now":"","replies":0,"images":0,"last_modified":1,"spoiler":1}"#.utf8)
+    #expect(try JSONDecoder().decode(CatalogThread.self, from: data).isMediaSpoilered)
+}
+
+// MARK: - Polling
+
+@Test func watchedThread_pollsUntilArchived() {
+    let thread = WatchedThread(board: "g", threadNo: 1, subject: "", lastSeenPostNo: 0)
+    #expect(thread.shouldPoll)
+    thread.isClosed = true
+    #expect(thread.shouldPoll)
+    thread.isArchived = true
+    #expect(!thread.shouldPoll)
+}

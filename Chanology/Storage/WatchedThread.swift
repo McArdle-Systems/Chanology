@@ -16,6 +16,10 @@ final class WatchedThread {
     /// Deprecated: now stored in MyPosts model. Kept to avoid SwiftData migration.
     var myPostNumbers: [Int] = []
 
+    /// Archived threads are read-only for good, so there's nothing new to fetch. They stay
+    /// on the watch list until removed, and opening one still fetches it.
+    var shouldPoll: Bool { !isArchived }
+
     init(board: String, threadNo: Int, subject: String, lastSeenPostNo: Int) {
         self.board = board
         self.threadNo = threadNo

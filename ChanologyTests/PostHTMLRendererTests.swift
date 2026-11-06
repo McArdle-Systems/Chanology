@@ -325,3 +325,93 @@ import UIKit
     let range = NSRange(location: 0, length: result.length)
     #expect(PostHTMLRenderer.plainText(from: result, in: range) == ">>42")
 }
+
+// MARK: - Spoilers
+
+private func spoilerLink(_ rendered: NSAttributedString, at index: Int) -> URL? {
+    rendered.attribute(.link, at: index, effectiveRange: nil) as? URL
+}
+
+@Test func plainText_redactsSpoilers() {
+    #expect(PostHTMLRenderer.plainText("before <s>secret</s> after") == "before [spoiler] after")
+}
+
+@Test func plainText_redactsSpoilersAcrossLines() {
+    #expect(PostHTMLRenderer.plainText("<s>one<br>two</s>") == "[spoiler]")
+}
+
+@Test func renderNS_hiddenSpoiler_matchesBackgroundAndLinksToReveal() {
+    let rendered = PostHTMLRenderer.renderNSAttributedString("<s>secret</s>")
+    #expect(rendered.string == "secret")
+    let foreground = rendered.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+    let background = rendered.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor
+    #expect(background != nil)
+    #expect(foreground == background)
+    #expect(spoilerLink(rendered, at: 0).flatMap(PostHTMLRenderer.spoilerIndex(from:)) == 0)
+}
+
+@Test func renderNS_revealedSpoiler_isPlainText() {
+    let rendered = PostHTMLRenderer.renderNSAttributedString("<s>secret</s>", revealedSpoilers: [0])
+    #expect(rendered.string == "secret")
+    #expect(rendered.attribute(.backgroundColor, at: 0, effectiveRange: nil) == nil)
+    #expect(spoilerLink(rendered, at: 0) == nil)
+}
+
+@Test func renderNS_spoilersRevealIndependently() {
+    let rendered = PostHTMLRenderer.renderNSAttributedString("<s>one</s> and <s>two</s>", revealedSpoilers: [0])
+    #expect(spoilerLink(rendered, at: 0) == nil)
+    let second = (rendered.string as NSString).range(of: "two").location
+    #expect(spoilerLink(rendered, at: second).flatMap(PostHTMLRenderer.spoilerIndex(from:)) == 1)
+}
+
+@Test func renderNS_hiddenSpoiler_doesNotExposeURLOrQuoteLink() {
+    let html = ##"<s>https://example.com <a href="#p5" class="quotelink">&gt;&gt;5</a></s>"##
+    let rendered = PostHTMLRenderer.renderNSAttributedString(html, myPostNumbers: [5], opNo: 5)
+    #expect(!rendered.string.contains("(You)"))
+    #expect(!rendered.string.contains("(OP)"))
+    rendered.enumerateAttribute(.link, in: NSRange(location: 0, length: rendered.length)) { value, _, _ in
+        #expect((value as? URL).flatMap(PostHTMLRenderer.spoilerIndex(from:)) == 0)
+    }
+}
+
+@Test func renderNS_revealedSpoiler_restoresQuoteLink() {
+    let html = ##"<s><a href="#p5" class="quotelink">&gt;&gt;5</a></s>"##
+    let rendered = PostHTMLRenderer.renderNSAttributedString(html, revealedSpoilers: [0])
+    #expect(spoilerLink(rendered, at: 0)?.absoluteString == "chanology://post/5")
+}
+
+@Test func plainText_showsOnlyRevealedSpoilers() {
+    let html = "<s>one</s> and <s>two</s>"
+    #expect(PostHTMLRenderer.plainText(html, revealedSpoilers: [1]) == "[spoiler] and two")
+    #expect(PostHTMLRenderer.plainText(html, revealedSpoilers: [0, 1]) == "one and two")
+}
+
+private func highlighted(_ html: String, query: String, revealed: Set<Int> = []) -> NSMutableAttributedString {
+    let text = NSMutableAttributedString(attributedString: PostHTMLRenderer.renderNSAttributedString(html, revealedSpoilers: revealed))
+    PostHTMLRenderer.applySearchHighlight(to: text, query: query)
+    return text
+}
+
+private func background(_ text: NSAttributedString, of word: String) -> UIColor? {
+    let location = (text.string as NSString).range(of: word).location
+    return text.attribute(.backgroundColor, at: location, effectiveRange: nil) as? UIColor
+}
+
+@Test func highlight_doesNotExposeTextInHiddenSpoiler() {
+    let text = highlighted("secret <s>secret2</s>", query: "secret")
+    #expect(background(text, of: "secret") != nil)
+    let hidden = (text.string as NSString).range(of: "secret2").location
+    #expect(text.attribute(.backgroundColor, at: hidden, effectiveRange: nil) as? UIColor == UIColor.systemGray)
+}
+
+@Test func highlight_spoilerQueryCoversHiddenTextCompletely() {
+    let text = highlighted("<s>hidden</s>", query: "spoiler")
+    let foreground = text.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor
+    #expect(background(text, of: "hidden") == .systemYellow)
+    #expect(foreground == .systemYellow)
+}
+
+@Test func highlight_matchesRevealedSpoilerText() {
+    let text = highlighted("<s>hidden</s>", query: "hidden", revealed: [0])
+    #expect(background(text, of: "hidden") == UIColor.systemYellow.withAlphaComponent(0.5))
+}
