@@ -3,7 +3,8 @@ import Foundation
 /// A single post within a thread (from the thread endpoint)
 struct Post: Codable, Identifiable, Sendable {
     let no: Int              // Post number (unique ID)
-    let now: String          // Date string "MM/DD/YY(Day)HH:MM:SS"
+    let now: String          // Date string "MM/DD/YY(Day)HH:MM:SS", US Eastern
+    var time: Int?           // UNIX timestamp of the post
     let name: String?        // Poster name
     let trip: String?        // Tripcode
     let posterID: String?    // Poster ID (on boards that show it)
@@ -56,6 +57,17 @@ struct Post: Codable, Identifiable, Sendable {
         return Double(imgH) / Double(imgW)
     }
 
+    /// Size reserved for this post's media. It depends only on the API's dimensions,
+    /// so a row is the same height whether or not its image has loaded. Rows that
+    /// change height while off screen make the scroll view jump.
+    var mediaSlotSize: CGSize {
+        let width: CGFloat = 260
+        guard let imageAspectRatio else { return CGSize(width: width, height: 120) }
+        return CGSize(width: width, height: width * imageAspectRatio)
+    }
+
+    var displayTimestamp: String { PostTimestamp.string(time: time, fallback: now) }
+
     /// Injected after decode — not part of API response
     var _board: String?
 
@@ -85,7 +97,7 @@ struct Post: Codable, Identifiable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case no, now, name, trip, capcode, com, sub, tim
+        case no, now, time, name, trip, capcode, com, sub, tim
         case filename, ext, fsize, w, h, md5, resto, replies, images
         case sticky, closed, archived, bumplimit, imagelimit
         case country

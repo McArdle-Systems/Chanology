@@ -42,6 +42,8 @@ struct CatalogView: View {
                 }
             }
         }
+        // HACK(#81): remove with SearchCloseFix once the SwiftUI bug is fixed.
+        .background(SearchCloseFix(text: $searchText))
         .navigationTitle("/\(board.board)/ — \(board.title)")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CatalogThread.self) { thread in
@@ -156,6 +158,67 @@ struct CatalogView: View {
     }
 }
 
+/// HACK(#81): Works around a SwiftUI bug seen on iOS 27.1 and 27.2. With `.searchable` inside a
+/// `TabView` at regular width, Close ends the search and SwiftUI immediately re-activates
+/// it if the field had focus. `UISearchController.isActive` is false only for a real close,
+/// which separates it from the Search key or opening a result. Must sit inside the
+/// `.searchable` view for `dismissSearch` to work.
+///
+/// To check if this can go: remove `SearchCloseFix` and its `.background` in `CatalogView`,
+/// then on an unfolded iPhone Duo in landscape, focus search and tap Close. If search stays
+/// closed, delete this.
+private struct SearchCloseFix: View {
+    @Binding var text: String
+    @Environment(\.dismissSearch) private var dismissSearch
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var activeObservation = ActiveObservation()
+
+    private final class ActiveObservation {
+        var token: NSKeyValueObservation?
+    }
+
+    var body: some View {
+        Color.clear
+            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
+                guard horizontalSizeClass == .regular,
+                      let field = note.object as? UISearchTextField,
+                      let controller = Self.searchController(for: field) else { return }
+                // Closing with the keyboard already down posts no editing notification.
+                let text = $text
+                activeObservation.token = controller.observe(\.isActive, options: [.new]) { _, change in
+                    guard change.newValue == false else { return }
+                    Task { @MainActor in text.wrappedValue = "" }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { note in
+                guard horizontalSizeClass == .regular,
+                      let field = note.object as? UISearchTextField,
+                      Self.searchController(for: field)?.isActive == false else { return }
+                dismissSearch()
+            }
+    }
+
+    private static func searchController(for view: UIView) -> UISearchController? {
+        var responder: UIResponder? = view
+        while let current = responder {
+            if let controller = current as? UISearchController { return controller }
+            if let viewController = current as? UIViewController, let controller = find(in: viewController) {
+                return controller
+            }
+            responder = current.next
+        }
+        return nil
+    }
+
+    private static func find(in viewController: UIViewController) -> UISearchController? {
+        if let controller = viewController.navigationItem.searchController { return controller }
+        for child in viewController.children {
+            if let controller = find(in: child) { return controller }
+        }
+        return nil
+    }
+}
+
 struct CatalogThreadRow: View {
     let thread: CatalogThread
     let board: String
@@ -201,6 +264,9 @@ struct CatalogThreadRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                Text(thread.displayTimestamp)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
         }
