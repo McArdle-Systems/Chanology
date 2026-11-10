@@ -1,10 +1,13 @@
 name: Tests
 
+# No push-to-main trigger: the PR run already tested the exact tree that
+# lands (the ruleset requires branches to be up to date before merging).
+# TestFlight verifies that before deploying and calls this workflow itself
+# (workflow_call) whenever it can't prove the tree was tested.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 jobs:
