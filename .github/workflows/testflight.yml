@@ -11,20 +11,95 @@ name: TestFlight
 #   APP_STORE_CONNECT_API_KEY_BASE64 — .p8 API key file as base64
 
 on:
-  workflow_run:
-    workflows: [Tests]
+  push:
     branches: [main]
-    types: [completed]
   workflow_dispatch:
 
+# Every build must be backed by a passing test of its exact tree, but we don't
+# want to re-run tests the PR already ran. So:
+#   verify -> proves the PR's passing "Test (GitHub-hosted)" run covered this
+#             exact tree. If it can, tests are skipped.
+#   tests  -> runs the full Tests workflow when verify can't prove it
+#             (out-of-date merge, admin bypass, manual dispatch, API hiccup).
+#   deploy -> runs only if one of the two passed.
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      tested: ${{ steps.check.outputs.tested }}
+    steps:
+      - name: Check PR tested this exact tree
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # Any failure below means "not proven" -> fall back to running tests.
+          # It never fails the job.
+          tested=false
+          trap 'echo "tested=$tested" >> "$GITHUB_OUTPUT"' EXIT
+
+          if [ "$EVENT" != push ] || [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            echo "::notice::No previous main tip to compare against ($EVENT); running tests."
+            exit 0
+          fi
+
+          tree_of() { gh api "repos/$REPO/git/commits/$1" --jq .tree.sha; }
+
+          main_tree=$(tree_of "$SHA") || exit 0
+          prs=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+                  --jq '.[] | select(.merged_at != null and .base.ref == "main") | .number') || exit 0
+
+          for pr in $prs; do
+            head=$(gh api "repos/$REPO/pulls/$pr" --jq .head.sha) || continue
+
+            # 1. The PR head already contained the old main tip. Then the merge
+            #    ref CI tested (old main + head) has exactly the head's tree.
+            status=$(gh api "repos/$REPO/compare/$BEFORE...$head" --jq .status) || continue
+            case "$status" in ahead|identical) ;; *)
+              echo "PR #$pr: head was not up to date with main ($status)."; continue ;;
+            esac
+
+            # 2. What landed on main is byte-identical to that head.
+            [ "$(tree_of "$head")" = "$main_tree" ] || { echo "PR #$pr: tree differs from main."; continue; }
+
+            # 3. The latest required test run on that head passed.
+            conclusion=$(gh api "repos/$REPO/commits/$head/check-runs?check_name=Test%20(GitHub-hosted)&filter=latest" \
+                           --jq '.check_runs[0].conclusion // "none"') || continue
+            [ "$conclusion" = success ] || { echo "PR #$pr: required check is '$conclusion'."; continue; }
+
+            echo "::notice::Tree $main_tree passed tests in PR #$pr (head $head); skipping re-run."
+            tested=true
+            exit 0
+          done
+
+          echo "::notice::Could not prove this tree was tested; running tests."
+
+  tests:
+    needs: verify
+    if: needs.verify.outputs.tested != 'true'
+    uses: ./.github/workflows/test.yml
+
   deploy:
+    needs: [verify, tests]
+    if: >-
+      !cancelled() &&
+      needs.verify.result == 'success' &&
+      (needs.tests.result == 'success' ||
+       (needs.tests.result == 'skipped' && needs.verify.outputs.tested == 'true'))
     # GitHub's Xcode 27 image, same as the required Tests leg. It defaults to
     # Xcode 27.0, but the app uses iOS 27.1 APIs, so pin 27.1 explicitly.
     runs-on: xcode-27
     timeout-minutes: 45
     environment: PROD
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     # Build numbers come from latest_testflight_build_number, so two uploads
     # racing each other would pick the same number. Queue them instead.
     concurrency:
