@@ -42,69 +42,17 @@ enum BackgroundRefreshHandler {
         }
     }
 
-    /// The actual polling work. Fetches each watched thread and fires local
-    /// notifications for new posts. Designed to complete well within 30s.
-    /// Pass a `ModelContext` when calling from the UI to keep SwiftUI's @Query in sync.
-    static func performRefresh(using existingContext: sending ModelContext? = nil) async {
-        let context: ModelContext
-        if let existingContext {
-            context = existingContext
-        } else {
-            let container: ModelContainer
-            do {
-                let schema = Schema([WatchedThread.self, MyPosts.self])
-                container = try ModelContainer(for: schema)
-            } catch {
-                return
-            }
-            context = ModelContext(container)
+    /// The actual polling work: one `ThreadPoller` pass over watched and replied-in
+    /// threads. Designed to complete well within 30s.
+    @MainActor
+    static func performRefresh() async {
+        let container: ModelContainer
+        do {
+            let schema = Schema([WatchedThread.self, MyPosts.self])
+            container = try ModelContainer(for: schema)
+        } catch {
+            return
         }
-
-        let descriptor = FetchDescriptor<WatchedThread>()
-
-        guard let threads = try? context.fetch(descriptor), !threads.isEmpty else { return }
-
-        // Process threads sequentially to respect 4chan's rate limit (~1 req/sec)
-        for thread in threads where thread.shouldPoll {
-            guard !Task.isCancelled else { break }
-
-            do {
-                let posts = try await ChanAPI.shared.thread(board: thread.board, no: thread.threadNo)
-                let newPosts = posts.filter { $0.no > thread.lastSeenPostNo }
-
-                if !newPosts.isEmpty {
-                    let board = thread.board
-                    let threadNo = thread.threadNo
-                    let subject = thread.subject
-                    let myPostNumbers: Set<Int>
-                    let myPostsKey = MyPosts.key(board: board, threadNo: threadNo)
-                    let myPostsDescriptor = FetchDescriptor<MyPosts>(predicate: #Predicate { $0.threadKey == myPostsKey })
-                    myPostNumbers = Set((try? context.fetch(myPostsDescriptor))?.first?.postNumbers ?? [])
-                    await NotificationService.shared.notify(board: board, threadNo: threadNo, subject: subject, newPosts: newPosts, myPostNumbers: myPostNumbers)
-                    thread.lastSeenPostNo = posts.last!.no
-                    thread.newReplyCount += newPosts.count
-                    thread.lastChecked = Date()
-                    try? context.save()
-                }
-
-                let isClosedNow = (posts.first?.closed ?? 0) != 0
-                let isArchivedNow = (posts.first?.archived ?? 0) != 0
-                if thread.isClosed != isClosedNow || thread.isArchived != isArchivedNow {
-                    thread.isClosed = isClosedNow
-                    thread.isArchived = isArchivedNow
-                    try? context.save()
-                }
-            } catch ChanAPIError.notFound {
-                // Thread 404'd — it was pruned. Remove from watch list.
-                context.delete(thread)
-                try? context.save()
-            } catch {
-                // Network error, rate limit, etc. — skip this thread, try next time.
-                continue
-            }
-
-            // Throttle: 1 second between requests
-            try? await Task.sleep(for: .seconds(1))
-        }
+        await ThreadPoller.pollOnce(context: ModelContext(container))
     }
 }

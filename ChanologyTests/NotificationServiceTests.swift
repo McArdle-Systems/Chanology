@@ -122,3 +122,11 @@ private func build(posts: [Post], myPosts: Set<Int> = []) -> NotificationService
     let payload = build(posts: [p], myPosts: [])
     #expect(payload.isDirectReply == false)
 }
+
+// MARK: - Self-quotes
+
+@Test func notification_selfQuote_isNotDirectReply() {
+    let mine = makePost(no: 201, com: quoteLink(100))
+    let payload = build(posts: [mine], myPosts: [100, 201])
+    #expect(payload.isDirectReply == false)
+}
