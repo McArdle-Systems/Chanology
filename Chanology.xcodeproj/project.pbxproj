@@ -28,6 +28,7 @@
 		B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603D3DF6D3E057BA4AFB25EF /* ChanologyApp.swift */; };
 		B51702252281F094950CCDC3 /* Thread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EBAB55D9F547CC236E89C2 /* Thread.swift */; };
 		BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000002 /* ForegroundRefreshService.swift */; };
+		73854124F78432B5E44B7835 /* ThreadPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393FAB1F196FEFD6A117ABC3 /* ThreadPoller.swift */; };
 		C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28EB82DFF125BF662041087 /* NotificationService.swift */; };
 		D89B49BF599C996EF457A2C3 /* WatchedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */; };
 		FA00000000000000000001 /* SelectablePostText.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000002 /* SelectablePostText.swift */; };
@@ -41,8 +42,10 @@
 		FABB04A32F6799290087E4A7 /* ThreadRefreshLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */; };
 		FABB04A52F67A0FE0087E4A7 /* MediaPlayerPreloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */; };
 		FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */; };
+		3033D66DA85CF40914770492 /* ReplyTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A85064693356E6C7E17C243 /* ReplyTracking.swift */; };
 		FAC5088A2FDD19EC0092EFE5 /* PostTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */; };
 		FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */; };
+		20CED6519B3640633CD17A73 /* ReplyTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F225C44B5922AEF5F27A84B5 /* ReplyTrackingTests.swift */; };
 		FAC5088C2FDD19FB0092EFE5 /* PostTimestampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */; };
 		FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */; };
 		FAC52C3D2FDD1E7D00630C8F /* PostFormBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */; };
@@ -86,6 +89,7 @@
 		AA00000000000000000004 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
 		AA00000000000000000005 /* ThreadRefreshLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogicTests.swift; sourceTree = "<group>"; };
 		BB00000000000000000002 /* ForegroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRefreshService.swift; sourceTree = "<group>"; };
+		393FAB1F196FEFD6A117ABC3 /* ThreadPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadPoller.swift; sourceTree = "<group>"; };
 		C6F5F7A2AB23DA0E177E652D /* ThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadView.swift; sourceTree = "<group>"; };
 		CD4E23CE9247B7612BDCC18B /* ChanAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChanAPI.swift; sourceTree = "<group>"; };
 		E2391B51CA31FD92C95A43C4 /* WatchedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchedThread.swift; sourceTree = "<group>"; };
@@ -102,8 +106,10 @@
 		FABB04A22F6799280087E4A7 /* ThreadRefreshLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRefreshLogic.swift; sourceTree = "<group>"; };
 		FABB04A42F67A0FE0087E4A7 /* MediaPlayerPreloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayerPreloader.swift; sourceTree = "<group>"; };
 		FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogic.swift; sourceTree = "<group>"; };
+		6A85064693356E6C7E17C243 /* ReplyTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyTracking.swift; sourceTree = "<group>"; };
 		FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTimestamp.swift; sourceTree = "<group>"; };
 		FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSearchLogicTests.swift; sourceTree = "<group>"; };
+		F225C44B5922AEF5F27A84B5 /* ReplyTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyTrackingTests.swift; sourceTree = "<group>"; };
 		FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTimestampTests.swift; sourceTree = "<group>"; };
 		FAC52C3A2FDD1E5900630C8F /* NewThreadTitleBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewThreadTitleBuilder.swift; sourceTree = "<group>"; };
 		FAC52C3C2FDD1E7D00630C8F /* PostFormBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormBuilder.swift; sourceTree = "<group>"; };
@@ -172,6 +178,7 @@
 			isa = PBXGroup;
 			children = (
 				FAC508832FDD19EC0092EFE5 /* ThreadSearchLogic.swift */,
+				6A85064693356E6C7E17C243 /* ReplyTracking.swift */,
 				FAC5088B2FDD19EC0092EFE5 /* PostTimestamp.swift */,
 				3A004C6BC070ACEC1C9BD959 /* PostHTMLRenderer.swift */,
 				FA91B0722F649DB70098EC87 /* ReplyMapBuilder.swift */,
@@ -231,6 +238,7 @@
 			isa = PBXGroup;
 			children = (
 				FAC508852FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift */,
+				F225C44B5922AEF5F27A84B5 /* ReplyTrackingTests.swift */,
 				FAC5088D2FDD19FB0092EFE5 /* PostTimestampTests.swift */,
 				AA00000000000000000002 /* ReplyMapBuilderTests.swift */,
 				AA00000000000000000003 /* PostHTMLRendererTests.swift */,
@@ -249,6 +257,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000000000000000002 /* ForegroundRefreshService.swift */,
+				393FAB1F196FEFD6A117ABC3 /* ThreadPoller.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -419,6 +428,7 @@
 				AA00000000000000000008 /* ModelTests.swift in Sources */,
 				AA00000000000000000009 /* ThreadRefreshLogicTests.swift in Sources */,
 				FAC508862FDD19FB0092EFE5 /* ThreadSearchLogicTests.swift in Sources */,
+				20CED6519B3640633CD17A73 /* ReplyTrackingTests.swift in Sources */,
 				FAC5088C2FDD19FB0092EFE5 /* PostTimestampTests.swift in Sources */,
 				FAC52C432FDD1EE600630C8F /* PostFormBuilderTests.swift in Sources */,
 				9DDD83B021C147008090F7E6 /* NotificationServiceTests.swift in Sources */,
@@ -446,6 +456,7 @@
 				B4D2C0489AC7B2815249C9F3 /* ChanologyApp.swift in Sources */,
 				FAC52C3B2FDD1E5900630C8F /* NewThreadTitleBuilder.swift in Sources */,
 				FAC508842FDD19EC0092EFE5 /* ThreadSearchLogic.swift in Sources */,
+				3033D66DA85CF40914770492 /* ReplyTracking.swift in Sources */,
 				FAC5088A2FDD19EC0092EFE5 /* PostTimestamp.swift in Sources */,
 				C0A4E1A812DC546BEA498567 /* NotificationService.swift in Sources */,
 				FA91B0792F64E3B90098EC87 /* ChanPostAPI.swift in Sources */,
@@ -459,6 +470,7 @@
 				A1B2C3D4E5F60718A9B0C1D2 /* MyPosts.swift in Sources */,
 				FA91B0772F64E38F0098EC87 /* KeychainHelper.swift in Sources */,
 				BB00000000000000000001 /* ForegroundRefreshService.swift in Sources */,
+				73854124F78432B5E44B7835 /* ThreadPoller.swift in Sources */,
 				FA00000000000000000001 /* SelectablePostText.swift in Sources */,
 				4BC94D306EBD0946BEAE34E4 /* WatchListGrouping.swift in Sources */,
 				CE4E7754775798F230041EFD /* PostMarkerColor.swift in Sources */,

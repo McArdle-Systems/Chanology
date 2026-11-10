@@ -268,14 +268,18 @@ struct ThreadView: View {
                 onPosted: { newPostNo in
                     selectedQuotes.removeAll()
                     quotedSnippet = nil
-                    // Track our post for (You) indicators
-                    if let record = myPostsRecord {
-                        record.addPost(newPostNo)
+                    // Track our post for (You) indicators and reply notifications
+                    let record: MyPosts
+                    if let existing = myPostsRecord {
+                        record = existing
                     } else {
-                        let record = MyPosts(board: board, threadNo: threadNo)
-                        record.addPost(newPostNo)
+                        record = MyPosts(board: board, threadNo: threadNo)
                         modelContext.insert(record)
                     }
+                    record.addPost(newPostNo)
+                    if record.subject.isEmpty { record.subject = subject }
+                    // Replies to this post can only come after it, so start polling from here.
+                    if record.lastSeenPostNo == 0 { record.lastSeenPostNo = newPostNo }
                     // Refresh thread to show new post
                     Task {
                         await service.fetchThread(board: board, threadNo: threadNo)
@@ -610,6 +614,15 @@ struct ThreadView: View {
 
     /// Marks the currently visible posts as read and updates the marker
     private func markVisiblePostsAsRead() {
+        // Replied-in thread: everything loaded has been seen, so the poller shouldn't
+        // notify for it, and the replies-to-you counter can refresh now.
+        if let record = myPostsRecord, let lastPost = posts.last {
+            record.lastSeenPostNo = max(record.lastSeenPostNo, lastPost.no)
+            record.directReplyCount = ReplyTracking.directReplies(
+                in: posts, myPostNumbers: Set(record.postNumbers)
+            ).count
+        }
+
         guard let watched = watchedThreads.first(where: { $0.board == board && $0.threadNo == threadNo }),
               !visiblePosts.isEmpty else { return }
 
@@ -1505,12 +1518,12 @@ private func mockPost(
             ]
         )
     }
-    .modelContainer(for: WatchedThread.self, inMemory: true)
+    .modelContainer(for: [WatchedThread.self, MyPosts.self], inMemory: true)
 }
 
 #Preview("Thread — Archived & Watched") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: WatchedThread.self, configurations: config)
+    let container = try! ModelContainer(for: WatchedThread.self, MyPosts.self, configurations: config)
     let watched = WatchedThread(board: "g", threadNo: 12345, subject: "Post your desktop / tech setups.", lastSeenPostNo: 12347)
     watched.isClosed = true
     watched.isArchived = true
@@ -1527,6 +1540,32 @@ private func mockPost(
                 mockPost(no: 12346, com: ##"<a href="#p12345" class="quotelink">&gt;&gt;12345</a><br>Nice setup anon"##, resto: 12345),
                 mockPost(no: 12347, com: "Thread archived, RIP", id: "qR7mZp", resto: 12345),
             ],
+        )
+    }
+    .modelContainer(container)
+}
+
+#Preview("Thread — Replied (You), not watched") {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: WatchedThread.self, MyPosts.self, configurations: config)
+    let mine = MyPosts(board: "g", threadNo: 12345)
+    mine.addPost(12346)
+    mine.directReplyCount = 2
+    container.mainContext.insert(mine)
+    mockAuthenticatedForPreview()
+
+    return NavigationStack {
+        ThreadView(
+            board: "g",
+            threadNo: 12345,
+            subject: "What's your development environment?",
+            mockPosts: [
+                mockPost(no: 12345, com: "What&#039;s your development environment?", resto: 0, sub: "What's your development environment?"),
+                mockPost(no: 12346, com: "Neovim, tmux, and a lot of coffee.", resto: 12345),
+                mockPost(no: 12347, com: ##"<a href="#p12346" class="quotelink">&gt;&gt;12346</a><br>Based"##, id: "qR7mZp", resto: 12345),
+                mockPost(no: 12348, com: "Xcode, unfortunately.", resto: 12345),
+                mockPost(no: 12349, com: ##"<a href="#p12346" class="quotelink">&gt;&gt;12346</a><br>Which plugins?"##, resto: 12345),
+            ]
         )
     }
     .modelContainer(container)

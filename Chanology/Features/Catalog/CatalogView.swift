@@ -16,10 +16,12 @@ struct CatalogView: View {
     @State private var isAuthenticating = false
     @State private var navigateToNewThread: NewThreadTarget?
     @Query private var watchedThreads: [WatchedThread]
+    @Query private var allMyPosts: [MyPosts]
     @Environment(\.modelContext) private var modelContext
     @AppStorage("catalogToolbarSide") private var toolbarSide: FloatingToolbarSide = .trailing
 
     var body: some View {
+        let myPostsByThreadNo = myPostsOnBoard
         Group {
             if service.isCatalogLoading(board: board.board) && service.catalogThreads(board: board.board).isEmpty {
                 ProgressView("Loading /\(board.board)/…")
@@ -32,7 +34,9 @@ struct CatalogView: View {
                                 CatalogThreadRow(
                                     thread: thread,
                                     board: board.board,
-                                    isWatched: watchedThreads.contains { $0.board == board.board && $0.threadNo == thread.no }
+                                    isWatched: watchedThreads.contains { $0.board == board.board && $0.threadNo == thread.no },
+                                    didReply: myPostsByThreadNo[thread.no] != nil,
+                                    repliesToYou: myPostsByThreadNo[thread.no]?.directReplyCount ?? 0
                                 )
                             }
                             .buttonStyle(.plain)
@@ -134,6 +138,16 @@ struct CatalogView: View {
             )
             modelContext.insert(watched)
         }
+        // Track the OP as the user's post for (You) markers and reply tracking.
+        let key = MyPosts.key(board: board.board, threadNo: threadNo)
+        let record = allMyPosts.first(where: { $0.threadKey == key }) ?? {
+            let record = MyPosts(board: board.board, threadNo: threadNo)
+            modelContext.insert(record)
+            return record
+        }()
+        record.addPost(threadNo)
+        if record.subject.isEmpty { record.subject = title }
+        if record.lastSeenPostNo == 0 { record.lastSeenPostNo = threadNo }
         // Refresh catalog so the new OP shows up in the catalog list.
         await service.fetchCatalog(board: board.board)
         navigateToNewThread = NewThreadTarget(threadNo: threadNo, subject: title)
@@ -156,6 +170,16 @@ struct CatalogView: View {
             thread.plainTextComment?.localizedCaseInsensitiveContains(searchText) == true ||
             ThreadSearchLogic.matchesPostNumber(thread.no, query: searchText)
         }
+    }
+
+    /// The user's replied-in threads on this board, keyed by thread number.
+    private var myPostsOnBoard: [Int: MyPosts] {
+        let prefix = "\(board.board)/"
+        var result: [Int: MyPosts] = [:]
+        for record in allMyPosts where record.threadKey.hasPrefix(prefix) && !record.postNumbers.isEmpty {
+            result[record.threadNo] = record
+        }
+        return result
     }
 }
 
@@ -224,6 +248,10 @@ struct CatalogThreadRow: View {
     let thread: CatalogThread
     let board: String
     var isWatched: Bool = false
+    /// The user has posted in this thread.
+    var didReply: Bool = false
+    /// Posts in the thread quoting one of the user's posts (kept current by the poller).
+    var repliesToYou: Int = 0
 
     @State private var isSpoilerRevealed = false
 
@@ -270,6 +298,9 @@ struct CatalogThreadRow: View {
                 HStack(spacing: 12) {
                     Label("\(thread.replies)", systemImage: "bubble.right")
                     Label("\(thread.images)", systemImage: "photo")
+                    if didReply {
+                        youMarker
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -306,6 +337,22 @@ struct CatalogThreadRow: View {
         }
         .contentShape(Rectangle())
     }
+
+    /// "(You)" in the same color as the inline (You) quote markers, plus the replies-to-you count.
+    private var youMarker: some View {
+        HStack(spacing: 4) {
+            Text("(You)")
+                .fontWeight(.bold)
+            if repliesToYou > 0 {
+                Label("\(repliesToYou)", systemImage: "arrowshape.turn.up.left.fill")
+            }
+        }
+        .foregroundStyle(Color(uiColor: PostMarkerColor.you))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(repliesToYou > 0
+            ? "You replied. \(repliesToYou) \(repliesToYou == 1 ? "reply" : "replies") to you"
+            : "You replied")
+    }
 }
 
 // MARK: - Previews
@@ -340,7 +387,7 @@ enum CatalogSortOrder: String, CaseIterable {
     NavigationStack {
         CatalogView(board: previewBoard)
     }
-    .modelContainer(for: WatchedThread.self, inMemory: true)
+    .modelContainer(for: [WatchedThread.self, MyPosts.self], inMemory: true)
 }
 
 #Preview("CatalogThreadRow — with subject") {
@@ -366,6 +413,52 @@ enum CatalogSortOrder: String, CaseIterable {
         isWatched: true
     )
     .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — replied, 3 replies to you") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        didReply: true,
+        repliesToYou: 3
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — replied, no replies yet") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        didReply: true
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — replied + watched") {
+    CatalogThreadRow(
+        thread: mockCatalogThread(sub: "What&#039;s your development environment?", replies: 42),
+        board: "g",
+        isWatched: true,
+        didReply: true,
+        repliesToYou: 1
+    )
+    .padding(.vertical, 4)
+}
+
+#Preview("CatalogThreadRow — (You) states side by side") {
+    ScrollView {
+        VStack(spacing: 0) {
+            CatalogThreadRow(thread: mockCatalogThread(no: 1, sub: "Not replied", replies: 42), board: "g")
+            Divider()
+            CatalogThreadRow(thread: mockCatalogThread(no: 2, sub: "Replied, nobody answered", replies: 42), board: "g", didReply: true)
+            Divider()
+            CatalogThreadRow(thread: mockCatalogThread(no: 3, sub: "Replied, 1 reply to you", replies: 42), board: "g", didReply: true, repliesToYou: 1)
+            Divider()
+            CatalogThreadRow(thread: mockCatalogThread(no: 4, sub: "Replied + watched, 12 replies to you", replies: 314), board: "g", isWatched: true, didReply: true, repliesToYou: 12)
+            Divider()
+            CatalogThreadRow(thread: mockCatalogThread(no: 5, sub: "Sticky I started", replies: 1337, sticky: true), board: "g", isWatched: true, didReply: true, repliesToYou: 999)
+        }
+    }
 }
 
 #Preview("CatalogThreadRow — sticky") {

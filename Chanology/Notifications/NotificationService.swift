@@ -56,9 +56,7 @@ actor NotificationService {
     ) -> Payload {
         let title = "/\(board)/ — \(subject)"
 
-        let directReplies = myPostNumbers.isEmpty ? [] : newPosts.filter { post in
-            ReplyMapBuilder.quotedPosts(in: post).contains(where: myPostNumbers.contains)
-        }
+        let directReplies = ReplyTracking.directReplies(in: newPosts, myPostNumbers: myPostNumbers)
         let otherCount = newPosts.count - directReplies.count
 
         let body: String

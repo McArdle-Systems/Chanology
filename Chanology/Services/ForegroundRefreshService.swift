@@ -5,11 +5,11 @@ import SwiftData
 ///
 /// Views read directly from this service's `@Observable` properties, so SwiftUI re-renders
 /// automatically when data changes. The service also runs a background polling loop for
-/// watched threads while the app is in the foreground.
+/// watched and replied-in threads while the app is in the foreground.
 ///
 /// ## Architecture
 /// - **Single source of truth** for boards, catalog, and thread post data.
-/// - **Foreground polling** of watched threads every 30 seconds (replaces per-ThreadView timers).
+/// - **Foreground polling** of watched and replied-in threads every 30 seconds (replaces per-ThreadView timers).
 /// - **On-demand fetching** for boards/catalogs (pull-to-refresh, `.task` on appear).
 /// - Views no longer maintain their own ViewModels or copies of API data.
 @Observable
@@ -153,65 +153,20 @@ final class ForegroundRefreshService {
         isPolling = false
     }
 
-    /// Single poll pass: fetch each watched thread, update SwiftData + in-memory posts.
+    /// Single poll pass over watched and replied-in threads (see `ThreadPoller`),
+    /// keeping the in-memory post cache in sync for any open ThreadView.
     private func pollWatchedThreads() async {
         guard let container = modelContainer else { return }
-
-        let context = ModelContext(container)
-        let descriptor = FetchDescriptor<WatchedThread>()
-        guard let watchedThreads = try? context.fetch(descriptor), !watchedThreads.isEmpty else { return }
-
-        for watched in watchedThreads where watched.shouldPoll {
-            guard !Task.isCancelled else { break }
-
-            let board = watched.board
-            let threadNo = watched.threadNo
-            let key = Self.threadKey(board: board, threadNo: threadNo)
-
-            do {
-                let posts = try await ChanAPI.shared.thread(board: board, no: threadNo)
-
-                // Update in-memory cache (drives ThreadView if it's open)
-                threadPosts[key] = posts
-
-                // Update SwiftData watched thread state
-                let newPosts = posts.filter { $0.no > watched.lastSeenPostNo }
-                if !newPosts.isEmpty {
-                    let myPostsKey = MyPosts.key(board: board, threadNo: threadNo)
-                    let myPostsDescriptor = FetchDescriptor<MyPosts>(predicate: #Predicate { $0.threadKey == myPostsKey })
-                    let myPostNumbers = Set((try? context.fetch(myPostsDescriptor))?.first?.postNumbers ?? [])
-                    await NotificationService.shared.notify(
-                        board: board,
-                        threadNo: threadNo,
-                        subject: watched.subject,
-                        newPosts: newPosts,
-                        myPostNumbers: myPostNumbers
-                    )
-                    watched.lastSeenPostNo = posts.last!.no
-                    watched.newReplyCount += newPosts.count
-                    watched.lastChecked = Date()
-                    try? context.save()
+        await ThreadPoller.pollOnce(
+            context: ModelContext(container),
+            onFetched: { key, posts, isWatched in
+                // Replied-in threads that aren't watched only refresh the cache while open,
+                // so ThreadView's eviction of unwatched threads still holds.
+                if isWatched || self.threadPosts[key] != nil {
+                    self.threadPosts[key] = posts
                 }
-
-                let isClosedNow = (posts.first?.closed ?? 0) != 0
-                let isArchivedNow = (posts.first?.archived ?? 0) != 0
-                if watched.isClosed != isClosedNow || watched.isArchived != isArchivedNow {
-                    watched.isClosed = isClosedNow
-                    watched.isArchived = isArchivedNow
-                    try? context.save()
-                }
-            } catch ChanAPIError.notFound {
-                // Thread 404'd — remove from watch list
-                context.delete(watched)
-                try? context.save()
-                threadPosts.removeValue(forKey: key)
-            } catch {
-                // Network error — skip, try next time
-                continue
-            }
-
-            // Throttle: 1 second between requests (4chan rate limit)
-            try? await Task.sleep(for: .seconds(1))
-        }
+            },
+            onGone: { key in self.threadPosts.removeValue(forKey: key) }
+        )
     }
 }
