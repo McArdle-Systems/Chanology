@@ -70,6 +70,10 @@ jobs:
       - name: Boot simulator
         run: xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
 
+      # Lets saveToPhotos_doesNotCrash actually write to Photos instead of skipping.
+      - name: Grant Photos add access
+        run: xcrun simctl privacy "${{ steps.sim.outputs.udid }}" grant photos-add io.mcardle.chanology
+
       - name: Run tests
         run: |
           xcodebuild test \
