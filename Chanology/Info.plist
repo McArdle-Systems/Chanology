@@ -22,6 +22,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Chanology needs permission to save images and videos from threads to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Chanology needs photo library access to attach images to your posts.</string>
 	<key>NSUserNotificationsUsageDescription</key>

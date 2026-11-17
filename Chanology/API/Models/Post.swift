@@ -38,14 +38,23 @@ struct Post: Codable, Identifiable, Sendable {
     var id: Int { no }
     var isOP: Bool { resto == 0 }
     var thumbnailURL: URL? {
+        #if DEBUG
+        if let _debugMedia { return _debugMedia.thumbnail }
+        #endif
         guard let tim, let board = _board else { return nil }
         return URL(string: "https://i.4cdn.org/\(board)/\(tim)s.jpg")
     }
     var imageURL: URL? {
+        #if DEBUG
+        if let _debugMedia { return _debugMedia.full }
+        #endif
         guard let tim, let ext, let board = _board else { return nil }
         return URL(string: "https://i.4cdn.org/\(board)/\(tim)\(ext)")
     }
     var mobileImageURL: URL? {
+        #if DEBUG
+        if _debugMedia != nil { return nil }
+        #endif
         guard mobileImg == 1, let tim, let board = _board else { return nil }
         return URL(string: "https://i.4cdn.org/\(board)/\(tim)m.jpg")
     }
@@ -73,6 +82,16 @@ struct Post: Codable, Identifiable, Sendable {
 
     /// Injected after decode — not part of API response
     var _board: String?
+
+    #if DEBUG
+    /// Debug-only: points the post's media at local files (see `PreviewMedia`) so
+    /// previews can show real attachments without hitting the 4chan CDN.
+    struct DebugMedia: Sendable {
+        let full: URL
+        let thumbnail: URL
+    }
+    var _debugMedia: DebugMedia?
+    #endif
 
     var decodedSubject: String? { sub.map { PostHTMLRenderer.decodeEntities($0) } }
 
