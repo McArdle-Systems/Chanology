@@ -7,7 +7,8 @@ enum ThreadSearchLogic {
 
     /// Returns the post numbers that match `query`, preserving the order of `posts`.
     ///
-    /// Matches against the post's number, plain-text comment, subject, name, filename, and poster ID,
+    /// Matches against the post's number, plain-text comment, subject, name, filename (with
+    /// extension), and poster ID,
     /// as displayed: a hidden spoiler reads as `[spoiler]`, and the filename of hidden media
     /// doesn't match.
     /// When `query` is the "(You)" marker (case-insensitive, optionally surrounded by parens
@@ -37,7 +38,9 @@ enum ThreadSearchLogic {
             let inSubject  = post.decodedSubject?.lowercased().contains(lowered) == true
             let inName     = post.name?.lowercased().contains(lowered) == true
             let isFilenameShown = !post.isMediaSpoilered || revealedMedia.contains(post.no)
-            let inFilename = isFilenameShown && post.filename?.lowercased().contains(lowered) == true
+            // Match the filename as displayed under the media, extension included ("cat.gif").
+            let displayedFilename = post.filename.map { $0 + (post.ext ?? "") }
+            let inFilename = isFilenameShown && displayedFilename?.lowercased().contains(lowered) == true
             let inID       = post.posterID?.lowercased().contains(lowered) == true
             let inNumber   = matchesPostNumber(post.no, query: lowered)
             let inYouMarker = matchesYouMarker && postCarriesYouMarker(

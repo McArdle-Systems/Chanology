@@ -10,11 +10,12 @@ private func post(
     name: String? = nil,
     sub: String? = nil,
     filename: String? = nil,
+    ext: String? = nil,
     posterID: String? = nil
 ) -> Post {
     Post(
         no: no, now: "", name: name, trip: nil, posterID: posterID, capcode: nil,
-        com: com, sub: sub, tim: nil, filename: filename, ext: nil, fsize: nil,
+        com: com, sub: sub, tim: nil, filename: filename, ext: ext, fsize: nil,
         w: nil, h: nil, tnW: nil, tnH: nil, md5: nil, mobileImg: nil, resto: 0,
         replies: nil, images: nil, sticky: nil, closed: nil, archived: nil,
         bumplimit: nil, imagelimit: nil, country: nil, countryName: nil,
@@ -71,6 +72,26 @@ private func quote(_ n: Int) -> String {
 @Test func matches_inFilename() {
     let posts = [post(no: 1, com: "x", filename: "pepe_dance")]
     #expect(ThreadSearchLogic.matches(query: "pepe", posts: posts, myPostNumbers: []) == [1])
+}
+
+@Test func matches_fileExtension() {
+    let posts = [
+        post(no: 1, com: "x", filename: "dance", ext: ".gif"),
+        post(no: 2, com: "x", filename: "clip", ext: ".webm"),
+    ]
+    #expect(ThreadSearchLogic.matches(query: ".gif", posts: posts, myPostNumbers: []) == [1])
+    #expect(ThreadSearchLogic.matches(query: "GIF", posts: posts, myPostNumbers: []) == [1])
+}
+
+@Test func matches_fullDisplayedFilename() {
+    let posts = [post(no: 1, com: "x", filename: "pepe_dance", ext: ".gif")]
+    #expect(ThreadSearchLogic.matches(query: "dance.gif", posts: posts, myPostNumbers: []) == [1])
+}
+
+@Test func matches_hiddenMediaExtensionDoesNotMatch() {
+    var spoilered = post(no: 1, filename: "x", ext: ".gif")
+    spoilered.spoiler = 1
+    #expect(ThreadSearchLogic.matches(query: ".gif", posts: [spoilered], myPostNumbers: []).isEmpty)
 }
 
 @Test func matches_inPosterID() {

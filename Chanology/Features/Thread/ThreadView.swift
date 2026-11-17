@@ -21,6 +21,8 @@ struct ThreadView: View {
 
     @State private var service = ForegroundRefreshService.shared
     @State private var expandedImageURL: URL?
+    @State private var expandedImageFilename: String?
+    @State private var mediaActions = MediaActionRunner()
     @State private var scrollProxy: ScrollViewProxy?
     @State private var crossThreadTarget: CrossThreadTarget?
     @State private var highlightedPostNo: Int?
@@ -157,8 +159,9 @@ struct ThreadView: View {
             }
         }
         .fullScreenCover(item: $expandedImageURL) { url in
-            ExpandedImageView(url: url)
+            ExpandedImageView(url: url, originalFilename: expandedImageFilename)
         }
+        .mediaActionHUD(mediaActions)
         .navigationDestination(item: $crossThreadTarget) { target in
             ThreadView(board: target.board, threadNo: target.threadNo, subject: "Thread #\(target.threadNo)")
         }
@@ -523,7 +526,11 @@ struct ThreadView: View {
             searchQuery: searchIsOpen && !searchText.isEmpty ? searchText : nil,
             revealedSpoilers: revealedSpoilers[post.no] ?? [],
             isMediaRevealed: revealedMedia.contains(post.no),
-            onImageTap: { url in expandedImageURL = url },
+            mediaActionRunner: mediaActions,
+            onImageTap: { url in
+                expandedImageFilename = post.filename
+                expandedImageURL = url
+            },
             onRevealSpoiler: { index in revealedSpoilers[post.no, default: []].insert(index) },
             onRevealMedia: { revealedMedia.insert(post.no) },
             onPostNumberTap: { postNo in
@@ -812,6 +819,8 @@ struct PostView: View {
     var searchQuery: String? = nil
     var revealedSpoilers: Set<Int> = []
     var isMediaRevealed: Bool = false
+    /// Enables the long-press Save / Copy / Share menu on the attachment.
+    var mediaActionRunner: MediaActionRunner? = nil
     var onImageTap: ((URL) -> Void)?
     var onRevealSpoiler: ((Int) -> Void)?
     var onRevealMedia: (() -> Void)?
@@ -973,6 +982,11 @@ struct PostView: View {
                     .onTapGesture {
                         if isMediaHidden { onRevealMedia?() } else { onImageTap?(url) }
                     }
+                    .contextMenu {
+                        if !isMediaHidden, let runner = mediaActionRunner {
+                            MediaActionMenuItems(url: url, originalFilename: post.filename, runner: runner)
+                        }
+                    }
 
                     // Filename display
                     if !isMediaHidden, let filename = post.filename, let ext = post.ext {
@@ -1083,7 +1097,9 @@ struct NewRepliesMarker: View {
 
 struct ExpandedImageView: View {
     let url: URL
+    var originalFilename: String? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var mediaActions = MediaActionRunner()
 
     private var mediaType: MediaType {
         let ext = url.pathExtension.lowercased()
@@ -1119,14 +1135,31 @@ struct ExpandedImageView: View {
                     .ignoresSafeArea()
             }
 
-            closeButton
-                .padding()
+            HStack {
+                actionsMenu
+                Spacer()
+                closeButton
+            }
+            .padding()
         }
         .onTapGesture {
             if mediaType != .image {
                 dismiss()
             }
         }
+        .mediaActionHUD(mediaActions)
+    }
+
+    private var actionsMenu: some View {
+        Menu {
+            MediaActionMenuItems(url: url, originalFilename: originalFilename, runner: mediaActions)
+        } label: {
+            Image(systemName: "ellipsis.circle.fill")
+                .font(.title)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .gray.opacity(0.6))
+        }
+        .accessibilityLabel("Media Actions")
     }
 
     private var gifView: some View {
@@ -1322,6 +1355,10 @@ struct WebMPlayerView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
+        Self.makeWebView()
+    }
+
+    static func makeWebView() -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
@@ -1337,7 +1374,12 @@ struct WebMPlayerView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard context.coordinator.loadedURL != url else { return }
         context.coordinator.loadedURL = url
+        Self.load(url, into: webView)
+    }
 
+    /// Loads an autoplaying, looping <video> page for `url`. Separate from the view
+    /// so tests can drive it with a real WKWebView.
+    static func load(_ url: URL, into webView: WKWebView) {
         let html = """
         <!DOCTYPE html>
         <html>
@@ -1382,7 +1424,8 @@ struct WebMPlayerView: UIViewRepresentable {
         </html>
         """
 
-        webView.loadHTMLString(html, baseURL: nil)
+        // A file base URL lets WebKit read a local file (debug previews); remote URLs need none.
+        webView.loadHTMLString(html, baseURL: url.isFileURL ? url.deletingLastPathComponent() : nil)
     }
 
     class Coordinator {
@@ -1620,62 +1663,53 @@ private func mockPost(
     .padding()
 }
 
+#if DEBUG
+/// Wraps a PostView with the tap-to-expand viewer and long-press media menu that
+/// ThreadView normally supplies, so media previews are interactive in the canvas.
+/// Pair with `PreviewMedia.post(ext:)` so the attachment is a real local file.
+private struct InteractivePostPreview: View {
+    let post: Post
+    @State private var expandedURL: URL?
+    @State private var mediaActions = MediaActionRunner()
+
+    var body: some View {
+        PostView(post: post, mediaActionRunner: mediaActions, onImageTap: { expandedURL = $0 })
+            .padding()
+            .fullScreenCover(item: $expandedURL) { url in
+                ExpandedImageView(url: url, originalFilename: post.filename)
+            }
+            .mediaActionHUD(mediaActions)
+    }
+}
+
+#Preview("Post — with jpg") {
+    InteractivePostPreview(post: PreviewMedia.post(ext: "jpg", filename: "cool_image", comment: "Tap to zoom, hold to save or copy"))
+}
+
 #Preview("Post — with webm") {
-    let data = try! JSONSerialization.data(withJSONObject: [
-        "no": 11111,
-        "now": "01/01/25(Wed)12:30:00",
-        "name": "Anonymous",
-        "com": "Check out this sick webm",
-        "resto": 99999,
-        "tim": 1234567890,
-        "ext": ".webm",
-        "filename": "cool_video",
-        "w": 1920,
-        "h": 1080
-    ] as [String: Any])
-    var p = try! JSONDecoder().decode(Post.self, from: data)
-    p._board = "g"
-    return PostView(post: p)
-        .padding()
+    InteractivePostPreview(post: PreviewMedia.post(ext: "webm", filename: "cool_video", comment: "Check out this sick webm"))
 }
 
 #Preview("Post — with gif") {
-    let data = try! JSONSerialization.data(withJSONObject: [
-        "no": 11112,
-        "now": "01/01/25(Wed)12:31:00",
-        "name": "Anonymous",
-        "com": "kek, have a gif",
-        "resto": 99999,
-        "tim": 1234567891,
-        "ext": ".gif",
-        "filename": "pepe_dance",
-        "w": 500,
-        "h": 500
-    ] as [String: Any])
-    var p = try! JSONDecoder().decode(Post.self, from: data)
-    p._board = "g"
-    return PostView(post: p)
-        .padding()
+    InteractivePostPreview(post: PreviewMedia.post(ext: "gif", filename: "cool_gif", comment: "Animated in the row"))
 }
 
 #Preview("Post — with mp4") {
-    let data = try! JSONSerialization.data(withJSONObject: [
-        "no": 11113,
-        "now": "01/01/25(Wed)12:32:00",
-        "name": "Anonymous",
-        "com": "posting from my iPhone",
-        "resto": 99999,
-        "tim": 1234567892,
-        "ext": ".mp4",
-        "filename": "IMG_1234",
-        "w": 1920,
-        "h": 1080
-    ] as [String: Any])
-    var p = try! JSONDecoder().decode(Post.self, from: data)
-    p._board = "g"
-    return PostView(post: p)
-        .padding()
+    InteractivePostPreview(post: PreviewMedia.post(ext: "mp4", filename: "cool_clip", comment: "Plays in the native player"))
 }
+
+#Preview("Posts — all media types") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(["jpg", "gif", "webm", "mp4"].enumerated()), id: \.offset) { i, ext in
+                InteractivePostPreview(post: PreviewMedia.post(ext: ext, filename: "sample_\(ext)", comment: ext.uppercased(), no: 11111 + i))
+                Divider()
+            }
+        }
+    }
+}
+
+#endif
 
 #Preview("Post — (You)") {
     let post = mockPost(no: 11111, com: "Just posted this myself.", resto: 99999)
