@@ -184,13 +184,16 @@ final class MediaActionRunner {
         pasteboard.setItems([[kind.pasteboardType: data]])
     }
 
-    private static func saveToPhotos(_ fileURL: URL, kind: SavableMediaKind, filename: String) async throws {
+    /// `nonisolated` matters: Photos runs the change block on its own transaction queue.
+    /// Declared inside this @MainActor type, the closure would inherit main-actor
+    /// isolation and Swift 6's runtime check traps (EXC_BREAKPOINT) when Photos calls it.
+    nonisolated static func saveToPhotos(_ fileURL: URL, kind: SavableMediaKind, filename: String) async throws {
         guard let resourceType = kind.photosResourceType else { return }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             throw MediaSaverError.photosAccessDenied
         }
-        try await PHPhotoLibrary.shared().performChanges {
+        try await PHPhotoLibrary.shared().performChanges { @Sendable in
             let options = PHAssetResourceCreationOptions()
             options.originalFilename = filename
             // Adding the file as a resource (rather than via UIImage) keeps GIF animation intact.

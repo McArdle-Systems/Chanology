@@ -2,6 +2,7 @@ import Testing
 import UIKit
 import AVFoundation
 import ImageIO
+import Photos
 @testable import Chanology
 
 // Real (tiny) media files in ChanologyTests/Fixtures, generated with ffmpeg:
@@ -131,4 +132,27 @@ func copy_putsRawBytesOnPasteboardUnderKindType(_ fixture: MediaFixture) throws 
     #expect(state.error == 0, "MediaError code \(state.error)")
     #expect(state.readyState >= 2, "video never got a frame (readyState \(state.readyState))")
     #expect(state.width == 64)
+}
+
+// MARK: - Save to Photos
+
+private var photosAddGranted: Bool {
+    let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+    return status == .authorized || status == .limited
+}
+
+/// Regression test for a TestFlight crash: Photos runs the change block on its own
+/// transaction queue, and when the block inherited @MainActor isolation Swift 6's
+/// runtime check trapped (EXC_BREAKPOINT) right after access was granted.
+///
+/// Needs photos-add granted to the test host, or it's skipped (a permission prompt
+/// would hang the run). CI grants it; locally:
+///   xcrun simctl privacy <device> grant photos-add io.mcardle.chanology
+@MainActor
+@Test(
+    .enabled(if: photosAddGranted, "photos-add not granted to the test host"),
+    arguments: [MediaFixture.jpg, .gif, .mp4]
+)
+func saveToPhotos_doesNotCrash(_ fixture: MediaFixture) async throws {
+    try await MediaActionRunner.saveToPhotos(fixture.url, kind: fixture.kind, filename: "fixture.\(fixture.rawValue)")
 }
